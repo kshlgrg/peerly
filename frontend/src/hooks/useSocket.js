@@ -100,7 +100,7 @@ export function useSocket({ mode, onSignal, autoConnect = true }) {
           setInitiator(Boolean(payload.initiator));
           addMessage({
             role: "system",
-            text: "Matched with a peer.",
+            text: "Match found. Try not to be boring.",
             sentAt: payload.matchedAt,
           });
           break;
@@ -109,7 +109,7 @@ export function useSocket({ mode, onSignal, autoConnect = true }) {
           setInitiator(false);
           addMessage({
             role: "system",
-            text: payload.message ?? "Your peer left. Looking for a new match...",
+            text: payload.message ?? "They dipped. Queueing a better plot twist...",
           });
           break;
         case "message":

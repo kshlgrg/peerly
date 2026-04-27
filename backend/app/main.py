@@ -85,7 +85,7 @@ class ConnectionManager:
                 {
                     "type": "partner_left",
                     "reason": "disconnect",
-                    "message": "Your peer disconnected. Looking for a new match...",
+                    "message": "They vanished. The queue is finding someone less dramatic...",
                 },
             )
             if partner_mode:
@@ -149,7 +149,7 @@ class ConnectionManager:
                     {
                         "type": "partner_left",
                         "reason": "next",
-                        "message": "Your peer skipped. Looking for a new match...",
+                        "message": "They skipped. Their loss, obviously...",
                     },
                 )
 
@@ -191,7 +191,7 @@ class ConnectionManager:
             reporter_id,
             {
                 "type": "reported",
-                "message": "Report received. You can press Next to leave this match.",
+                "message": "Report locked. Hit Skip if the vibe is radioactive.",
             },
         )
 
@@ -286,7 +286,7 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                 await manager.report(client.id, payload.get("data", "No reason provided."))
             elif message_type in {"message", "offer", "answer", "ice"}:
                 if message_type == "message" and len(str(payload.get("data", ""))) > 1200:
-                    await manager.send(client.id, {"type": "error", "message": "Message is too long."})
+                    await manager.send(client.id, {"type": "error", "message": "Essay detected. Trim it."})
                     continue
                 await manager.relay(client.id, payload)
             else:

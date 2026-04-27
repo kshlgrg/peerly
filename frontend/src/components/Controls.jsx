@@ -22,7 +22,7 @@ export default function Controls({ onNext, onReport, disabled, reportDisabled })
         title="Find another peer"
       >
         <RefreshCcw size={17} aria-hidden="true" />
-        Next
+        Skip
       </button>
       <Link className="icon-button" to="/" title="Home" aria-label="Home">
         <Home size={18} aria-hidden="true" />

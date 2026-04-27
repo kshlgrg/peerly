@@ -22,8 +22,8 @@ export default function ChatBox({ messages, onSend, disabled }) {
     <section className="terminal-panel screen-panel flex min-h-0 flex-1 flex-col">
       <div ref={listRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
         {messages.length === 0 ? (
-          <div className="flex h-full items-center justify-center text-center font-mono text-sm text-cream/45">
-            Waiting by the warm screen...
+          <div className="flex h-full items-center justify-center text-center font-mono text-sm font-black uppercase text-amber">
+            Queue is loading. Main character arriving soon.
           </div>
         ) : (
           messages.map((message) => <MessageBubble key={message.id} message={message} />)
@@ -35,7 +35,7 @@ export default function ChatBox({ messages, onSend, disabled }) {
           className="min-w-0 flex-1 rounded-md border border-line bg-ink px-3 text-sm text-cream outline-none transition placeholder:text-cream/35 focus:border-amber"
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
-          placeholder={disabled ? "Waiting for a match" : "Type a message"}
+          placeholder={disabled ? "Waiting for a worthy opponent" : "Drop the opener. Be less basic."}
           disabled={disabled}
         />
         <button className="icon-button" type="submit" disabled={disabled || !draft.trim()} title="Send">
@@ -49,7 +49,7 @@ export default function ChatBox({ messages, onSend, disabled }) {
 function MessageBubble({ message }) {
   if (message.role === "system") {
     return (
-      <p className="mx-auto max-w-fit rounded-md border border-line bg-ink px-3 py-2 text-center font-mono text-xs text-cream/60">
+      <p className="mx-auto max-w-fit rounded-md border-2 border-line bg-ink px-3 py-2 text-center font-mono text-xs font-black uppercase text-amber">
         {message.text}
       </p>
     );
@@ -61,8 +61,8 @@ function MessageBubble({ message }) {
       <div
         className={`max-w-[78%] border px-3 py-2 text-sm leading-6 ${
           isMine
-            ? "border-amber/70 bg-amber/10 text-cream"
-            : "border-line bg-ink text-cream"
+            ? "border-amber bg-amber text-ink"
+            : "border-copper bg-ink text-cream shadow-[5px_5px_0_rgba(255,79,216,0.65)]"
         }`}
       >
         {message.text}

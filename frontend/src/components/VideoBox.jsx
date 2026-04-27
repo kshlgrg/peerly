@@ -12,13 +12,13 @@ export default function VideoBox({
       <div className="terminal-panel screen-panel relative min-h-[420px] overflow-hidden">
         <video ref={remoteVideoRef} className="h-full w-full object-cover" autoPlay playsInline />
         {status !== "matched" && (
-          <div className="absolute inset-0 flex items-center justify-center bg-ink/85 p-6 text-center font-mono text-sm text-cream/60">
-            Remote feed will appear after matching.
+          <div className="absolute inset-0 flex items-center justify-center bg-ink/90 p-6 text-center font-mono text-sm font-black uppercase text-amber">
+            Waiting for the other legend to spawn.
           </div>
         )}
-        <div className="absolute left-4 top-4 flex items-center gap-2 rounded-md border border-line bg-ink/90 px-3 py-2 font-mono text-xs text-cream/75">
+        <div className="absolute left-4 top-4 flex items-center gap-2 rounded-md border-2 border-line bg-amber px-3 py-2 font-mono text-xs font-black uppercase text-ink">
           <MonitorUp size={15} aria-hidden="true" />
-          Peer
+          Stranger danger, but make it campus
         </div>
       </div>
 
@@ -32,20 +32,20 @@ export default function VideoBox({
             playsInline
           />
           {!localReady && (
-            <div className="absolute inset-0 flex items-center justify-center bg-ink/85 p-4 text-center font-mono text-xs text-cream/60">
-              Camera starting...
+            <div className="absolute inset-0 flex items-center justify-center bg-ink/90 p-4 text-center font-mono text-xs font-black uppercase text-amber">
+              Camera loading. Face card pending.
             </div>
           )}
-          <div className="absolute left-3 top-3 flex items-center gap-2 rounded-md border border-line bg-ink/90 px-2 py-1.5 font-mono text-xs text-cream/75">
+          <div className="absolute left-3 top-3 flex items-center gap-2 rounded-md border-2 border-line bg-copper px-2 py-1.5 font-mono text-xs font-black uppercase text-ink">
             <Camera size={14} aria-hidden="true" />
-            You
+            You, unfortunately
           </div>
         </div>
 
-        <div className="terminal-panel space-y-3 p-4 font-mono text-sm">
+        <div className="terminal-panel space-y-3 p-4 font-mono text-sm font-bold uppercase">
           <div className="flex items-center gap-3 text-cream/75">
-            <Mic size={16} className="text-amber" aria-hidden="true" />
-            Audio and video are peer-to-peer.
+            <Mic size={16} className="text-copper" aria-hidden="true" />
+            Video is peer-to-peer. Server is not your nosy auntie.
           </div>
           {mediaError && <p className="text-amber">{mediaError}</p>}
         </div>
