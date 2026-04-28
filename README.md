@@ -56,7 +56,8 @@ The backend handles matching, text relay, disconnects, reports, and WebRTC signa
 - Next/skip flow with partner cleanup.
 - Disconnect handling.
 - Report button.
-- Retro video filters.
+- Retro video filters, including an Alien mode with green/wide video and outgoing voice modulation.
+- Cheese mode in text chat with one-click chaotic openers.
 - Side chat inside video mode.
 - Responsive home page with small interactive widgets.
 - Production CORS and WebSocket origin configuration.

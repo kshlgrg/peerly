@@ -4,11 +4,14 @@ const RTC_CONFIG = {
   iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
 };
 
-export function useWebRTC({ status, isInitiator, sendSignal }) {
+export function useWebRTC({ status, isInitiator, sendSignal, alienVoiceEnabled = false }) {
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const peerConnectionRef = useRef(null);
   const localStreamRef = useRef(null);
+  const rawStreamRef = useRef(null);
+  const rawAudioTrackRef = useRef(null);
+  const alienAudioRef = useRef(null);
   const pendingCandidatesRef = useRef([]);
   const offerStartedRef = useRef(false);
 
@@ -28,6 +31,93 @@ export function useWebRTC({ status, isInitiator, sendSignal }) {
     offerStartedRef.current = false;
     attachRemoteStream(null);
   }, [attachRemoteStream]);
+
+  const stopAlienAudio = useCallback(() => {
+    alienAudioRef.current?.track?.stop();
+    alienAudioRef.current?.oscillator?.stop();
+    alienAudioRef.current?.audioContext?.close();
+    alienAudioRef.current = null;
+  }, []);
+
+  const createAlienAudioTrack = useCallback(() => {
+    const rawAudioTrack = rawAudioTrackRef.current;
+    const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
+
+    if (!rawAudioTrack || !AudioContextConstructor) {
+      return rawAudioTrack;
+    }
+
+    stopAlienAudio();
+
+    const audioContext = new AudioContextConstructor();
+    const source = audioContext.createMediaStreamSource(new MediaStream([rawAudioTrack]));
+    const bandpass = audioContext.createBiquadFilter();
+    const shaper = audioContext.createWaveShaper();
+    const modulator = audioContext.createGain();
+    const oscillator = audioContext.createOscillator();
+    const oscillatorDepth = audioContext.createGain();
+    const destination = audioContext.createMediaStreamDestination();
+
+    const curve = new Float32Array(256);
+    for (let index = 0; index < curve.length; index += 1) {
+      const x = (index * 2) / curve.length - 1;
+      curve[index] = Math.tanh(2.4 * x);
+    }
+
+    bandpass.type = "bandpass";
+    bandpass.frequency.value = 920;
+    bandpass.Q.value = 3.5;
+    shaper.curve = curve;
+    shaper.oversample = "4x";
+    modulator.gain.value = 0.62;
+    oscillator.type = "sine";
+    oscillator.frequency.value = 38;
+    oscillatorDepth.gain.value = 0.28;
+
+    source.connect(bandpass);
+    bandpass.connect(shaper);
+    shaper.connect(modulator);
+    oscillator.connect(oscillatorDepth);
+    oscillatorDepth.connect(modulator.gain);
+    modulator.connect(destination);
+    oscillator.start();
+    audioContext.resume?.();
+
+    const [track] = destination.stream.getAudioTracks();
+    alienAudioRef.current = { audioContext, oscillator, track };
+
+    return track;
+  }, [stopAlienAudio]);
+
+  const replaceOutgoingAudioTrack = useCallback((track) => {
+    const audioSender = peerConnectionRef.current
+      ?.getSenders()
+      .find((sender) => sender.track?.kind === "audio");
+
+    audioSender?.replaceTrack(track ?? null);
+  }, []);
+
+  const applyAudioMode = useCallback(() => {
+    const rawStream = rawStreamRef.current;
+    if (!rawStream) {
+      return;
+    }
+
+    const videoTracks = rawStream.getVideoTracks();
+    const audioTrack = alienVoiceEnabled ? createAlienAudioTrack() : rawAudioTrackRef.current;
+
+    if (!alienVoiceEnabled) {
+      stopAlienAudio();
+    }
+
+    const nextStream = new MediaStream([...videoTracks, ...(audioTrack ? [audioTrack] : [])]);
+    localStreamRef.current = nextStream;
+    replaceOutgoingAudioTrack(audioTrack);
+
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = nextStream;
+    }
+  }, [alienVoiceEnabled, createAlienAudioTrack, replaceOutgoingAudioTrack, stopAlienAudio]);
 
   const ensurePeerConnection = useCallback(() => {
     if (peerConnectionRef.current) {
@@ -106,6 +196,8 @@ export function useWebRTC({ status, isInitiator, sendSignal }) {
           return;
         }
 
+        rawStreamRef.current = stream;
+        rawAudioTrackRef.current = stream.getAudioTracks()[0] ?? null;
         localStreamRef.current = stream;
         peerConnectionRef.current &&
           stream.getTracks().forEach((track) => {
@@ -125,10 +217,19 @@ export function useWebRTC({ status, isInitiator, sendSignal }) {
     return () => {
       cancelled = true;
       closePeerConnection();
-      localStreamRef.current?.getTracks().forEach((track) => track.stop());
+      stopAlienAudio();
+      rawStreamRef.current?.getTracks().forEach((track) => track.stop());
+      rawStreamRef.current = null;
+      rawAudioTrackRef.current = null;
       localStreamRef.current = null;
     };
-  }, [closePeerConnection]);
+  }, [closePeerConnection, stopAlienAudio]);
+
+  useEffect(() => {
+    if (localReady) {
+      applyAudioMode();
+    }
+  }, [applyAudioMode, localReady]);
 
   useEffect(() => {
     if (status !== "matched") {

@@ -6,6 +6,7 @@ const filters = [
   { id: "crt", label: "CRT", className: "video-filter-crt" },
   { id: "vapor", label: "Vapor", className: "video-filter-vapor" },
   { id: "toxic", label: "Toxic", className: "video-filter-toxic" },
+  { id: "alien", label: "Alien", className: "video-filter-alien" },
 ];
 
 export default function VideoBox({
@@ -16,8 +17,15 @@ export default function VideoBox({
   mediaError,
   messages,
   onSend,
+  onAlienVoiceChange,
+  alienVoiceEnabled,
 }) {
   const [activeFilter, setActiveFilter] = useState(filters[1]);
+
+  function chooseFilter(filter) {
+    setActiveFilter(filter);
+    onAlienVoiceChange?.(filter.id === "alien");
+  }
 
   return (
     <section className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
@@ -62,7 +70,9 @@ export default function VideoBox({
         <div className="terminal-panel space-y-3 p-4 font-mono text-sm font-bold uppercase">
           <div className="flex items-center gap-3 text-cream/75">
             <Mic size={16} className="text-copper" aria-hidden="true" />
-            Video is peer-to-peer. Server is not your nosy auntie.
+            {alienVoiceEnabled
+              ? "Alien mic is live. You now sound like campus Wi-Fi gained sentience."
+              : "Video is peer-to-peer. Server is not your nosy auntie."}
           </div>
           {mediaError && <p className="text-amber">{mediaError}</p>}
         </div>
@@ -82,7 +92,7 @@ export default function VideoBox({
                     : "border-line bg-ink text-amber hover:border-copper"
                 }`}
                 type="button"
-                onClick={() => setActiveFilter(filter)}
+                onClick={() => chooseFilter(filter)}
               >
                 {filter.label}
               </button>

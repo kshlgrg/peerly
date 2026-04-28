@@ -118,4 +118,10 @@ video {
   .video-filter-toxic {
     filter: contrast(1.45) saturate(1.55) sepia(0.25) hue-rotate(58deg);
   }
+
+  .video-filter-alien {
+    filter: hue-rotate(82deg) saturate(2.4) contrast(1.45) brightness(1.08);
+    transform: scaleX(1.16) scaleY(1.03);
+    transform-origin: center;
+  }
 }

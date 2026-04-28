@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import Controls from "../components/Controls.jsx";
 import MatchStatus from "../components/MatchStatus.jsx";
@@ -9,6 +9,7 @@ import { useWebRTC } from "../hooks/useWebRTC.js";
 export default function Video() {
   const signalHandlerRef = useRef(null);
   const connectedOnceRef = useRef(false);
+  const [alienVoiceEnabled, setAlienVoiceEnabled] = useState(false);
   const socket = useSocket({
     mode: "video",
     onSignal: (payload) => signalHandlerRef.current?.(payload),
@@ -18,6 +19,7 @@ export default function Video() {
     status: socket.status,
     isInitiator: socket.isInitiator,
     sendSignal: socket.sendSignal,
+    alienVoiceEnabled,
   });
   const reconnect = socket.reconnect;
 
@@ -51,6 +53,8 @@ export default function Video() {
         mediaError={webRTC.mediaError}
         messages={socket.messages}
         onSend={socket.sendChat}
+        onAlienVoiceChange={setAlienVoiceEnabled}
+        alienVoiceEnabled={alienVoiceEnabled}
       />
     </main>
   );
