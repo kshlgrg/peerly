@@ -49,6 +49,8 @@ export default function Video() {
         status={socket.status}
         localReady={webRTC.localReady}
         mediaError={webRTC.mediaError}
+        messages={socket.messages}
+        onSend={socket.sendChat}
       />
     </main>
   );

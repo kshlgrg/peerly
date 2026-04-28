@@ -1,5 +1,26 @@
-import { MessageSquareText, Power, Sparkles, Video } from "lucide-react";
+import { Dice5, Gamepad2, MessageSquareText, Power, Sparkles, Video } from "lucide-react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
+
+const openers = [
+  "Rate today's campus Wi-Fi trauma from 1 to cooked.",
+  "What class has main-villain energy and why?",
+  "Drop your most unserious study habit.",
+  "Best campus food item or are we all suffering?",
+  "What is your academic red flag? Be honest-ish.",
+  "If your semester had a soundtrack, what song is playing?",
+];
+
+const vocab = [
+  "locked in",
+  "side quest",
+  "aura debt",
+  "crashout pending",
+  "NPC audit",
+  "lore unlocked",
+  "vibe tax",
+  "social battery bankrupt",
+];
 
 export default function Home() {
   return (
@@ -47,6 +68,8 @@ export default function Home() {
               />
             </div>
 
+            <VibeConsole />
+
             <div className="mt-6 grid gap-3 border-t-2 border-line pt-4 font-mono text-xs font-black uppercase text-cream/70 sm:grid-cols-3">
               <div className="flex items-center gap-2">
                 <Sparkles size={14} className="text-copper" aria-hidden="true" />
@@ -59,6 +82,50 @@ export default function Home() {
         </div>
       </section>
     </main>
+  );
+}
+
+function VibeConsole() {
+  const [openerIndex, setOpenerIndex] = useState(0);
+  const [wordIndex, setWordIndex] = useState(0);
+  const [heat, setHeat] = useState(42);
+
+  function remix() {
+    setOpenerIndex((current) => (current + 1 + Math.floor(Math.random() * 3)) % openers.length);
+    setWordIndex((current) => (current + 1 + Math.floor(Math.random() * 4)) % vocab.length);
+    setHeat((current) => Math.min(100, Math.max(8, current + Math.floor(Math.random() * 35) - 12)));
+  }
+
+  return (
+    <div className="mt-5 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+      <div className="terminal-panel bg-[#090012] p-4">
+        <div className="mb-3 flex items-center gap-2 font-mono text-xs font-black uppercase text-copper">
+          <Gamepad2 size={15} aria-hidden="true" />
+          micro game: vibe calibration
+        </div>
+        <div className="h-4 overflow-hidden rounded-sm border-2 border-line bg-ink">
+          <div
+            className="h-full bg-gradient-to-r from-copper via-amber to-mint transition-all"
+            style={{ width: `${heat}%` }}
+          />
+        </div>
+        <div className="mt-3 flex items-center justify-between gap-3 font-mono text-xs font-black uppercase text-cream/70">
+          <span>{heat}% social battery</span>
+          <button className="command-button min-h-9 px-3 text-xs" type="button" onClick={remix}>
+            <Dice5 size={14} aria-hidden="true" />
+            reroll
+          </button>
+        </div>
+      </div>
+
+      <div className="terminal-panel bg-[#100014] p-4 font-mono uppercase">
+        <p className="text-xs font-black text-amber">starter pack</p>
+        <p className="mt-2 text-sm font-black leading-6 text-cream">{openers[openerIndex]}</p>
+        <p className="mt-3 inline-block border-2 border-copper bg-copper px-2 py-1 text-xs font-black text-ink">
+          word of the minute: {vocab[wordIndex]}
+        </p>
+      </div>
+    </div>
   );
 }
 

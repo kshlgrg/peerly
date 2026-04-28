@@ -94,4 +94,20 @@ video {
     background-size: 100% 6px;
     opacity: 0.5;
   }
+
+  .video-filter-clean {
+    filter: none;
+  }
+
+  .video-filter-crt {
+    filter: contrast(1.2) saturate(1.35) hue-rotate(-8deg);
+  }
+
+  .video-filter-vapor {
+    filter: contrast(1.25) saturate(1.8) hue-rotate(28deg);
+  }
+
+  .video-filter-toxic {
+    filter: contrast(1.45) saturate(1.55) sepia(0.25) hue-rotate(58deg);
+  }
 }

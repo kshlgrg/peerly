@@ -1,4 +1,12 @@
-import { Camera, Mic, MonitorUp } from "lucide-react";
+import { Camera, Mic, MonitorUp, SendHorizonal, Sparkles } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+
+const filters = [
+  { id: "clean", label: "Clean", className: "video-filter-clean" },
+  { id: "crt", label: "CRT", className: "video-filter-crt" },
+  { id: "vapor", label: "Vapor", className: "video-filter-vapor" },
+  { id: "toxic", label: "Toxic", className: "video-filter-toxic" },
+];
 
 export default function VideoBox({
   localVideoRef,
@@ -6,11 +14,20 @@ export default function VideoBox({
   status,
   localReady,
   mediaError,
+  messages,
+  onSend,
 }) {
+  const [activeFilter, setActiveFilter] = useState(filters[1]);
+
   return (
-    <section className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+    <section className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
       <div className="terminal-panel screen-panel relative min-h-[420px] overflow-hidden">
-        <video ref={remoteVideoRef} className="h-full w-full object-cover" autoPlay playsInline />
+        <video
+          ref={remoteVideoRef}
+          className={`h-full w-full object-cover ${activeFilter.className}`}
+          autoPlay
+          playsInline
+        />
         {status !== "matched" && (
           <div className="absolute inset-0 flex items-center justify-center bg-ink/90 p-6 text-center font-mono text-sm font-black uppercase text-amber">
             Waiting for the other legend to spawn.
@@ -26,7 +43,7 @@ export default function VideoBox({
         <div className="terminal-panel screen-panel relative aspect-video overflow-hidden">
           <video
             ref={localVideoRef}
-            className="h-full w-full object-cover"
+            className={`h-full w-full object-cover ${activeFilter.className}`}
             autoPlay
             muted
             playsInline
@@ -49,7 +66,92 @@ export default function VideoBox({
           </div>
           {mediaError && <p className="text-amber">{mediaError}</p>}
         </div>
+
+        <div className="terminal-panel p-3">
+          <div className="mb-3 flex items-center gap-2 font-mono text-xs font-black uppercase text-amber">
+            <Sparkles size={14} aria-hidden="true" />
+            retro filter
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {filters.map((filter) => (
+              <button
+                key={filter.id}
+                className={`min-h-10 border-2 px-2 font-mono text-xs font-black uppercase transition ${
+                  filter.id === activeFilter.id
+                    ? "border-copper bg-copper text-ink"
+                    : "border-line bg-ink text-amber hover:border-copper"
+                }`}
+                type="button"
+                onClick={() => setActiveFilter(filter)}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <MiniVideoChat messages={messages} onSend={onSend} disabled={status !== "matched"} />
       </aside>
+    </section>
+  );
+}
+
+function MiniVideoChat({ messages, onSend, disabled }) {
+  const [draft, setDraft] = useState("");
+  const listRef = useRef(null);
+
+  useEffect(() => {
+    listRef.current?.scrollTo({
+      top: listRef.current.scrollHeight,
+      behavior: "smooth",
+    });
+  }, [messages]);
+
+  function submit(event) {
+    event.preventDefault();
+    onSend(draft);
+    setDraft("");
+  }
+
+  return (
+    <section className="terminal-panel flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="border-b-2 border-line bg-amber px-3 py-2 font-mono text-xs font-black uppercase text-ink">
+        side chat for awkward silences
+      </div>
+      <div ref={listRef} className="min-h-28 flex-1 space-y-2 overflow-y-auto p-3">
+        {messages.length === 0 ? (
+          <p className="font-mono text-xs font-black uppercase text-cream/45">
+            No words yet. Historic levels of silence.
+          </p>
+        ) : (
+          messages.slice(-12).map((message) => (
+            <p
+              key={message.id}
+              className={`border px-2 py-1 text-xs ${
+                message.role === "me"
+                  ? "border-amber bg-amber text-ink"
+                  : message.role === "system"
+                    ? "border-line bg-ink font-mono font-black uppercase text-amber"
+                    : "border-copper bg-ink text-cream"
+              }`}
+            >
+              {message.text}
+            </p>
+          ))
+        )}
+      </div>
+      <form className="flex gap-2 border-t-2 border-line p-2" onSubmit={submit}>
+        <input
+          className="min-w-0 flex-1 rounded-md border-2 border-line bg-ink px-2 text-xs text-cream outline-none placeholder:text-cream/35 focus:border-copper"
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          placeholder={disabled ? "match first" : "tiny roast, tiny compliment"}
+          disabled={disabled}
+        />
+        <button className="icon-button h-10 w-10" type="submit" disabled={disabled || !draft.trim()} title="Send">
+          <SendHorizonal size={16} aria-hidden="true" />
+        </button>
+      </form>
     </section>
   );
 }
