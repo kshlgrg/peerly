@@ -1,28 +1,81 @@
 # PeerLy
 
-PeerLy is a real-time anonymous student chat app with random matching, text chat, next/skip, lightweight reporting, and peer-to-peer WebRTC video. The UI uses a warm retro computer theme: amber glow, CRT scanlines, and compact terminal-style controls.
+PeerLy is a real-time anonymous student chat and video app with random matching, instant skip, retro CRT visuals, and peer-to-peer WebRTC video.
+
+- Live app: https://peerly-web.onrender.com
+- API health: https://peerly-api.onrender.com/health
+- Repository: https://github.com/kshlgrg/peerly
+
+## What It Does
+
+- Matches students randomly into one-on-one text or video rooms.
+- Sends chat messages instantly over WebSockets.
+- Uses WebRTC for direct peer-to-peer camera and microphone streams.
+- Lets users skip with **Next** and get rematched.
+- Includes a small report flow for lightweight moderation.
+- Ships with a warm Gen Z retro-computer interface: CRT scanlines, terminal panels, amber glow, savage little micro-toys, and mobile-friendly layouts.
+
+## Tech Stack
+
+**Frontend**
+
+- React
+- Vite
+- Tailwind CSS
+- Zustand
+- WebRTC browser APIs
+
+**Backend**
+
+- FastAPI
+- Native WebSockets
+- Python async matching/signaling logic
+- In-memory queues and session state for MVP speed
+
+**Hosting**
+
+- Render static web service for the frontend
+- Render web service for the FastAPI backend
 
 ## Architecture
 
 ```text
-React + Vite frontend
-  -> FastAPI WebSocket control layer
-  -> WebRTC peer-to-peer media layer
+React frontend
+  -> WebSocket control layer
+  -> FastAPI matching + signaling server
+  -> WebRTC peer-to-peer media
 ```
 
-The backend handles matching, text relay, and WebRTC signaling. Video and audio flow directly between browsers after the offer, answer, and ICE exchange.
+The backend handles matching, text relay, disconnects, reports, and WebRTC signaling messages. Video and audio do **not** stream through the backend after connection setup; browsers exchange media directly through WebRTC.
 
-## Features
+## Current Features
 
-- Random queue-based matching for text and video rooms.
-- Realtime text chat over WebSockets.
-- Next/skip flow that avoids immediately rematching the same pair.
-- WebRTC offer, answer, and ICE signaling for peer-to-peer media.
-- Report control with short-lived in-memory report capture.
-- Responsive retro CRT interface for desktop and mobile.
-- Production env configuration for hosted origins and WebSocket URLs.
+- Random queue-based matching by mode.
+- Text chat with realtime delivery.
+- Video chat with offer, answer, and ICE signaling.
+- Next/skip flow with partner cleanup.
+- Disconnect handling.
+- Report button.
+- Retro video filters.
+- Side chat inside video mode.
+- Responsive home page with small interactive widgets.
+- Production CORS and WebSocket origin configuration.
 
-## Run Backend
+## Live Testing
+
+To test the deployed app:
+
+1. Open https://peerly-web.onrender.com on two devices or two browser profiles.
+2. Pick the same mode on both devices.
+3. For text mode, send messages both ways.
+4. For video mode, allow camera and microphone access on both devices.
+5. Press **Next** on one device and confirm the other device returns to waiting.
+
+If the free Render backend is sleeping, the first connection can take a short moment to wake up.
+
+## Local Development
+
+### Backend
 
 ```bash
 cd backend
@@ -32,20 +85,26 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Health check: `http://localhost:8000/health`
+Health check:
 
-Backend environment:
+```text
+http://localhost:8000/health
+```
+
+Optional local backend env:
 
 ```bash
 cp backend/.env.example backend/.env
 ```
 
-Set these in production:
+Production backend env:
 
-- `PEERLY_CORS_ORIGINS`: comma-separated frontend origins, for example `https://peerly-web.onrender.com`
-- `PEERLY_WS_ORIGINS`: comma-separated WebSocket origins, usually the same as `PEERLY_CORS_ORIGINS`
+```bash
+PEERLY_CORS_ORIGINS=https://peerly-web.onrender.com
+PEERLY_WS_ORIGINS=https://peerly-web.onrender.com
+```
 
-## Run Frontend
+### Frontend
 
 ```bash
 cd frontend
@@ -53,52 +112,22 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:5173`.
+Open:
 
-Frontend environment:
+```text
+http://localhost:5173
+```
+
+Optional local frontend env:
 
 ```bash
 cp frontend/.env.example frontend/.env
 ```
 
-Set `VITE_WS_URL` in production, for example `wss://peerly-api.onrender.com/ws`.
-
-## Test Locally
-
-1. Start both servers.
-2. Open two browser tabs at `http://localhost:5173`.
-3. Pick the same mode in both tabs.
-4. Use **Next** to break and rematch.
-
-For video chat, allow camera and microphone permissions in both tabs.
-
-## Deploy
-
-The repo includes:
-
-- `render.yaml` for a two-service Render deployment.
-- `backend/Dockerfile` for the FastAPI service.
-- `frontend/Dockerfile` and `frontend/nginx.conf` for static frontend hosting.
-- `.env.example` files for required production values.
-
-### Render Blueprint
-
-1. Push this repo to GitHub.
-2. In Render, create a new Blueprint from the repository.
-3. After Render creates both services, set:
-   - `peerly-api` env vars:
-     - `PEERLY_CORS_ORIGINS=https://YOUR_FRONTEND_HOST`
-     - `PEERLY_WS_ORIGINS=https://YOUR_FRONTEND_HOST`
-   - `peerly-web` env var:
-     - `VITE_WS_URL=wss://YOUR_BACKEND_HOST/ws`
-4. Redeploy the frontend after setting `VITE_WS_URL`, because Vite embeds it at build time.
-
-### Other Hosts
-
-Host `frontend/dist` on any static host after running `npm run build`. Host the backend on any Python service that supports WebSockets with this start command:
+Production frontend env:
 
 ```bash
-uvicorn app.main:app --host 0.0.0.0 --port $PORT
+VITE_WS_URL=wss://peerly-api.onrender.com/ws
 ```
 
 ## WebSocket Protocol
@@ -126,6 +155,54 @@ Server messages:
 { "type": "error", "message": "..." }
 ```
 
+## Deploy
+
+The repo includes a Render Blueprint:
+
+- `render.yaml`
+- `backend/Dockerfile`
+- `frontend/Dockerfile`
+- `frontend/nginx.conf`
+
+Render services:
+
+- Frontend: https://peerly-web.onrender.com
+- Backend: https://peerly-api.onrender.com
+
+After changing frontend environment variables, redeploy the frontend because Vite embeds `VITE_WS_URL` at build time.
+
+## Database Notes
+
+PeerLy currently does **not** need a database for the core MVP because matching, chat relay, and WebRTC signaling are temporary realtime events.
+
+Add Supabase, Postgres, or another database when you want:
+
+- Persistent reports.
+- Moderation review history.
+- Campus email verification.
+- Interest tags.
+- Bans or rate-limit records.
+- User preferences.
+
+For a public student launch, persistent reports and rate limiting should come before serious growth.
+
 ## Safety Notes
 
-PeerLy does not persist chat logs. Reports are held in memory only in this MVP, so production abuse review should add persistent report storage, rate limits, CAPTCHA or campus SSO, and a clear safety notice before public launch.
+- PeerLy does not persist chat logs in the MVP.
+- Reports are currently lightweight and should become persistent before public moderation use.
+- Production hardening should add rate limits, CAPTCHA or campus SSO, persistent report storage, abuse review tools, and a visible safety notice.
+- Do not secretly record users. Keep safety controls explicit.
+
+## Roadmap
+
+- Persistent moderation reports.
+- Interest tags.
+- Better queue states.
+- Campus-only login option.
+- TURN server support for stricter networks.
+- More retro video filters.
+- Optional Supabase-backed moderation dashboard.
+
+## Suggested GitHub Topics
+
+`react`, `vite`, `fastapi`, `websocket`, `webrtc`, `tailwindcss`, `zustand`, `render`, `student-chat`, `peer-to-peer`
