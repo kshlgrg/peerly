@@ -1,5 +1,4 @@
 import {
-  BadgeCheck,
   Dice5,
   Gamepad2,
   MessageSquareText,
@@ -31,18 +30,6 @@ const vocab = [
   "social battery bankrupt",
 ];
 
-const bingoTiles = [
-  "camera denied",
-  "Wi-Fi villain arc",
-  "mutual academic pain",
-  "accidental therapy",
-  "skip speedrun",
-  "lore dump",
-  "group project trauma",
-  "cafeteria slander",
-  "finals panic",
-];
-
 const roastLines = [
   "Your opener has 4 seconds before the skip button starts glowing.",
   "If you say 'hey' and vanish, the app files a complaint emotionally.",
@@ -50,6 +37,16 @@ const roastLines = [
   "Confidence loading. Charisma DLC not included.",
   "This queue has seen things. Be interesting for once.",
 ];
+
+const facts = [
+  "WebRTC does the video peer-to-peer after the socket handles the intro.",
+  "A good opener beats a perfect profile. This is science if you do not ask scientists.",
+  "The skip button is basically emotional fast travel.",
+  "Anonymous chat works best when the app stays tiny and the people stay interesting.",
+  "If two devices join the same mode, the backend plays matchmaker and then gets out of the way.",
+];
+
+const memoryLabels = ["AURA", "WIFI", "LORE", "YAP"];
 
 const forecastRows = [
   ["Yap probability", "82%"],
@@ -73,8 +70,8 @@ export default function Home() {
 
         <div className="terminal-panel border-[12px] border-ink bg-violet p-3">
           <div className="screen-panel rounded-md border-2 border-line bg-ink px-5 py-7 sm:px-8 sm:py-10">
-            <div className="grid gap-5 xl:grid-cols-[minmax(0,1.08fr)_minmax(360px,0.92fr)]">
-              <div>
+            <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+              <div className="min-w-0">
                 <HeroBlock />
 
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -96,15 +93,16 @@ export default function Home() {
               </div>
 
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-1">
-                <SlangSlot />
-                <CampusBingo />
-                <QueueForecast />
+                <MiniSnake />
+                <BlockDrop />
+                <MemoryFlip />
+                <FactGenerator />
               </div>
             </div>
 
             <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_1fr_1.15fr]">
-              <MicroToy title="Tonight's Quest" value="Find one person who isn't allergic to conversation." />
-              <MicroToy title="Anti-Cringe Patch" value="No profiles. No follow counts. No LinkedIn cosplay." />
+              <SlangSlot />
+              <QueueForecast />
               <RoastTicker />
             </div>
 
@@ -125,12 +123,12 @@ export default function Home() {
 
 function HeroBlock() {
   return (
-    <div className="mb-9 font-mono">
+    <div className="mb-9 font-mono xl:min-h-[360px]">
       <p className="mb-3 flex items-center gap-2 text-sm font-black uppercase text-amber">
         <Power size={15} aria-hidden="true" />
         peerly://enter-the-peer-zone
       </p>
-      <h1 className="sticker-title text-6xl font-black uppercase tracking-normal sm:text-8xl lg:text-9xl">
+      <h1 className="sticker-title text-6xl font-black uppercase tracking-normal sm:text-8xl lg:text-9xl xl:text-[9.5rem]">
         PeerLy
       </h1>
       <p className="mt-5 max-w-2xl text-lg font-black uppercase leading-7 text-amber sm:text-xl">
@@ -218,41 +216,235 @@ function SlangSlot() {
   );
 }
 
-function CampusBingo() {
-  const [checked, setChecked] = useState([]);
+function MiniSnake() {
+  const [snake, setSnake] = useState([
+    { x: 2, y: 2 },
+    { x: 1, y: 2 },
+  ]);
+  const [direction, setDirection] = useState({ x: 1, y: 0 });
+  const [food, setFood] = useState({ x: 4, y: 3 });
+  const [score, setScore] = useState(0);
 
-  function toggle(tile) {
-    setChecked((current) =>
-      current.includes(tile) ? current.filter((item) => item !== tile) : [...current, tile],
-    );
+  function reset() {
+    setSnake([
+      { x: 2, y: 2 },
+      { x: 1, y: 2 },
+    ]);
+    setDirection({ x: 1, y: 0 });
+    setFood({ x: 4, y: 3 });
+    setScore(0);
+  }
+
+  function step() {
+    setSnake((current) => {
+      const head = current[0];
+      const nextHead = {
+        x: (head.x + direction.x + 6) % 6,
+        y: (head.y + direction.y + 6) % 6,
+      };
+      const crashed = current.some((cell) => cell.x === nextHead.x && cell.y === nextHead.y);
+      if (crashed) {
+        setScore(0);
+        setFood({ x: 4, y: 3 });
+        return [
+          { x: 2, y: 2 },
+          { x: 1, y: 2 },
+        ];
+      }
+
+      const ate = nextHead.x === food.x && nextHead.y === food.y;
+      const nextSnake = ate ? [nextHead, ...current] : [nextHead, ...current.slice(0, -1)];
+      if (ate) {
+        setScore((currentScore) => currentScore + 1);
+        setFood({
+          x: (food.x + 2 + score) % 6,
+          y: (food.y + 3 + score) % 6,
+        });
+      }
+      return nextSnake;
+    });
   }
 
   return (
     <section className="terminal-panel bg-[#090012] p-4 font-mono uppercase">
-      <div className="mb-3 flex items-center gap-2 text-xs font-black text-copper">
-        <Gamepad2 size={15} aria-hidden="true" />
-        campus bingo
+      <div className="mb-3 flex items-center justify-between gap-3 text-xs font-black text-copper">
+        <span className="flex items-center gap-2">
+          <Gamepad2 size={15} aria-hidden="true" />
+          mini snake
+        </span>
+        <span className="text-amber">score {score}</span>
       </div>
-      <div className="grid grid-cols-3 gap-2">
-        {bingoTiles.map((tile) => {
-          const active = checked.includes(tile);
+      <div className="grid grid-cols-6 gap-1">
+        {Array.from({ length: 36 }, (_, index) => {
+          const x = index % 6;
+          const y = Math.floor(index / 6);
+          const isSnake = snake.some((cell) => cell.x === x && cell.y === y);
+          const isFood = food.x === x && food.y === y;
+          return (
+            <span
+              key={`${x}-${y}`}
+              className={`aspect-square border border-line ${
+                isSnake ? "bg-copper" : isFood ? "bg-amber" : "bg-ink"
+              }`}
+            />
+          );
+        })}
+      </div>
+      <div className="mt-3 grid grid-cols-5 gap-2">
+        <button className="icon-button h-9 w-full text-xs" type="button" onClick={() => setDirection({ x: -1, y: 0 })}>
+          L
+        </button>
+        <button className="icon-button h-9 w-full text-xs" type="button" onClick={() => setDirection({ x: 0, y: -1 })}>
+          U
+        </button>
+        <button className="command-button col-span-1 min-h-9 px-2 text-xs" type="button" onClick={step}>
+          go
+        </button>
+        <button className="icon-button h-9 w-full text-xs" type="button" onClick={() => setDirection({ x: 0, y: 1 })}>
+          D
+        </button>
+        <button className="icon-button h-9 w-full text-xs" type="button" onClick={() => setDirection({ x: 1, y: 0 })}>
+          R
+        </button>
+      </div>
+      <button className="mt-2 w-full border-2 border-line bg-ink py-2 text-xs font-black text-cream" type="button" onClick={reset}>
+        reset tiny worm
+      </button>
+    </section>
+  );
+}
+
+function BlockDrop() {
+  const [columns, setColumns] = useState([1, 3, 0, 2, 1]);
+  const [activeColumn, setActiveColumn] = useState(2);
+  const total = columns.reduce((sum, value) => sum + value, 0);
+
+  function drop() {
+    setColumns((current) =>
+      current.map((height, index) => (index === activeColumn ? Math.min(6, height + 1) : height)),
+    );
+  }
+
+  return (
+    <section className="terminal-panel bg-[#120015] p-4 font-mono uppercase">
+      <div className="mb-3 flex items-center justify-between gap-3 text-xs font-black text-amber">
+        <span>block drop</span>
+        <span>{total}/30 stacked</span>
+      </div>
+      <div className="grid grid-cols-5 gap-2">
+        {columns.map((height, columnIndex) => (
+          <button
+            key={columnIndex}
+            className={`flex h-36 flex-col-reverse gap-1 border-2 p-1 ${
+              activeColumn === columnIndex ? "border-copper bg-[#26001f]" : "border-line bg-ink"
+            }`}
+            type="button"
+            onClick={() => setActiveColumn(columnIndex)}
+            aria-label={`Select block column ${columnIndex + 1}`}
+          >
+            {Array.from({ length: 6 }, (_, rowIndex) => (
+              <span
+                key={rowIndex}
+                className={`h-4 border border-line ${rowIndex < height ? "bg-amber" : "bg-transparent"}`}
+              />
+            ))}
+          </button>
+        ))}
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <button className="command-button min-h-9 px-2 text-xs" type="button" onClick={drop}>
+          drop
+        </button>
+        <button
+          className="border-2 border-line bg-ink px-2 text-xs font-black text-cream"
+          type="button"
+          onClick={() => setColumns([0, 0, 0, 0, 0])}
+        >
+          clear
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function MemoryFlip() {
+  const [tiles, setTiles] = useState(() => [...memoryLabels, ...memoryLabels].sort(() => 0.5 - Math.random()));
+  const [flipped, setFlipped] = useState([]);
+  const [solved, setSolved] = useState([]);
+
+  function flip(index) {
+    if (flipped.includes(index) || solved.includes(index)) {
+      return;
+    }
+
+    if (flipped.length === 1) {
+      const first = flipped[0];
+      if (tiles[first] === tiles[index]) {
+        setSolved((current) => [...current, first, index]);
+        setFlipped([]);
+      } else {
+        setFlipped([index]);
+      }
+      return;
+    }
+
+    setFlipped([index]);
+  }
+
+  function reset() {
+    setTiles([...memoryLabels, ...memoryLabels].sort(() => 0.5 - Math.random()));
+    setFlipped([]);
+    setSolved([]);
+  }
+
+  return (
+    <section className="terminal-panel bg-[#101000] p-4 font-mono uppercase">
+      <div className="mb-3 flex items-center justify-between gap-3 text-xs font-black text-copper">
+        <Gamepad2 size={15} aria-hidden="true" />
+        memory flip
+        <span className="text-amber">{solved.length / 2}/4</span>
+      </div>
+      <div className="grid grid-cols-4 gap-2">
+        {tiles.map((tile, index) => {
+          const visible = flipped.includes(index) || solved.includes(index);
           return (
             <button
-              key={tile}
-              className={`min-h-16 border-2 p-2 text-[10px] font-black uppercase leading-4 transition ${
-                active
-                  ? "border-copper bg-copper text-ink"
-                  : "border-line bg-ink text-cream hover:border-copper"
+              key={`${tile}-${index}`}
+              className={`min-h-14 border-2 text-[10px] font-black transition ${
+                visible ? "border-copper bg-copper text-ink" : "border-line bg-ink text-amber"
               }`}
               type="button"
-              onClick={() => toggle(tile)}
+              onClick={() => flip(index)}
             >
-              {tile}
+              {visible ? tile : "??"}
             </button>
           );
         })}
       </div>
-      <p className="mt-3 text-xs font-black text-amber">{checked.length}/9 chaos artifacts collected</p>
+      <button className="mt-3 w-full border-2 border-line bg-ink py-2 text-xs font-black text-cream" type="button" onClick={reset}>
+        reshuffle
+      </button>
+    </section>
+  );
+}
+
+function FactGenerator() {
+  const [index, setIndex] = useState(0);
+
+  return (
+    <section className="terminal-panel bg-[#130513] p-4 font-mono uppercase">
+      <div className="mb-3 flex items-center gap-2 text-xs font-black text-amber">
+        <Sparkles size={15} aria-hidden="true" />
+        random fact terminal
+      </div>
+      <p className="min-h-20 text-sm font-black leading-6 text-cream">{facts[index]}</p>
+      <button
+        className="command-button mt-3 min-h-9 px-3 text-xs"
+        type="button"
+        onClick={() => setIndex((current) => (current + 1 + Math.floor(Math.random() * 2)) % facts.length)}
+      >
+        generate lore
+      </button>
     </section>
   );
 }
@@ -280,18 +472,6 @@ function QueueForecast() {
           </div>
         ))}
       </div>
-    </section>
-  );
-}
-
-function MicroToy({ title, value }) {
-  return (
-    <section className="terminal-panel bg-panel p-4 font-mono uppercase">
-      <div className="mb-2 flex items-center gap-2 text-xs font-black text-copper">
-        <BadgeCheck size={15} aria-hidden="true" />
-        {title}
-      </div>
-      <p className="text-sm font-black leading-6 text-cream">{value}</p>
     </section>
   );
 }
