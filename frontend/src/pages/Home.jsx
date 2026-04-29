@@ -1,6 +1,8 @@
 import { Dice5, MessageSquareText, Sparkles, Video, Zap } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+
+import { disconnectSocketSession } from "../hooks/useSocket.js";
 
 const featureRows = [
   ["Random matching", "Queue up, get paired, skip when the vibe is expired."],
@@ -18,6 +20,10 @@ const genzFacts = [
 export default function Home() {
   const [factIndex, setFactIndex] = useState(0);
   const fact = genzFacts[factIndex];
+
+  useEffect(() => {
+    disconnectSocketSession();
+  }, []);
 
   return (
     <main className="peerly-shell flex min-h-[100dvh] items-center justify-center overflow-x-hidden px-3 py-6 sm:px-5 lg:py-8">

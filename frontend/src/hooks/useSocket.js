@@ -2,6 +2,42 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import { useSessionStore } from "../store/sessionStore.js";
 
+const sharedConnection = {
+  socket: null,
+  reconnectTimer: null,
+  shouldReconnect: true,
+  connect: null,
+  socketUrl: null,
+};
+
+let activeOnSignal = null;
+const pendingSignals = [];
+
+function flushPendingSignals() {
+  if (!activeOnSignal) {
+    return;
+  }
+
+  while (pendingSignals.length > 0) {
+    activeOnSignal(pendingSignals.shift());
+  }
+}
+
+function deliverSignal(payload) {
+  if (!activeOnSignal) {
+    pendingSignals.push(payload);
+    return;
+  }
+
+  window.setTimeout(() => {
+    if (activeOnSignal) {
+      activeOnSignal(payload);
+    } else {
+      pendingSignals.push(payload);
+    }
+  }, 0);
+}
+
 function defaultSocketUrl() {
   const { protocol, hostname, host } = window.location;
   const socketProtocol = protocol === "https:" ? "wss" : "ws";
@@ -12,14 +48,11 @@ function defaultSocketUrl() {
 
 export function useSocket({ mode, onSignal, autoConnect = true }) {
   const socketUrl = useMemo(() => import.meta.env.VITE_WS_URL ?? defaultSocketUrl(), []);
-  const socketRef = useRef(null);
-  const connectRef = useRef(null);
-  const reconnectTimerRef = useRef(null);
-  const shouldReconnectRef = useRef(true);
   const onSignalRef = useRef(onSignal);
 
   const {
     status,
+    mode: activeMode,
     messages,
     isInitiator,
     error,
@@ -35,15 +68,24 @@ export function useSocket({ mode, onSignal, autoConnect = true }) {
     addMessage,
     clearMessages,
     clearGame,
-    resetSession,
   } = useSessionStore();
 
   useEffect(() => {
     onSignalRef.current = onSignal;
+    activeOnSignal = onSignal;
+    if (onSignal) {
+      window.setTimeout(flushPendingSignals, 0);
+    }
+
+    return () => {
+      if (activeOnSignal === onSignalRef.current) {
+        activeOnSignal = null;
+      }
+    };
   }, [onSignal]);
 
   const send = useCallback((payload) => {
-    const socket = socketRef.current;
+    const socket = sharedConnection.socket;
     if (!socket || socket.readyState !== WebSocket.OPEN) {
       return false;
     }
@@ -53,26 +95,27 @@ export function useSocket({ mode, onSignal, autoConnect = true }) {
   }, []);
 
   const connect = useCallback(() => {
-    window.clearTimeout(reconnectTimerRef.current);
+    window.clearTimeout(sharedConnection.reconnectTimer);
     if (
-      socketRef.current?.readyState === WebSocket.OPEN ||
-      socketRef.current?.readyState === WebSocket.CONNECTING
+      sharedConnection.socket?.readyState === WebSocket.OPEN ||
+      sharedConnection.socket?.readyState === WebSocket.CONNECTING
     ) {
       return;
     }
 
-    shouldReconnectRef.current = true;
+    sharedConnection.shouldReconnect = true;
+    sharedConnection.socketUrl = socketUrl;
     setMode(mode);
     setStatus("connecting");
     setError(null);
 
-    socketRef.current?.close(1000, "reconnecting");
+    sharedConnection.socket?.close(1000, "reconnecting");
 
     const socket = new WebSocket(socketUrl);
-    socketRef.current = socket;
+    sharedConnection.socket = socket;
 
     socket.addEventListener("open", () => {
-      if (socketRef.current !== socket) {
+      if (sharedConnection.socket !== socket) {
         return;
       }
       setStatus("connected");
@@ -80,7 +123,7 @@ export function useSocket({ mode, onSignal, autoConnect = true }) {
     });
 
     socket.addEventListener("message", (event) => {
-      if (socketRef.current !== socket) {
+      if (sharedConnection.socket !== socket) {
         return;
       }
       let payload;
@@ -102,12 +145,23 @@ export function useSocket({ mode, onSignal, autoConnect = true }) {
         case "matched":
           clearMessages();
           clearGame();
+          setMode(payload.mode ?? mode);
           setStatus("matched");
           setInitiator(Boolean(payload.initiator));
           addMessage({
             role: "system",
             text: "Match found. Try not to be boring.",
             sentAt: payload.matchedAt,
+          });
+          break;
+        case "mode_changed":
+          setMode(payload.mode);
+          setStatus("matched");
+          setInitiator(Boolean(payload.initiator));
+          addMessage({
+            role: "system",
+            text: payload.message ?? "Mode changed. The chat receipts survived.",
+            sentAt: payload.changedAt,
           });
           break;
         case "partner_left":
@@ -129,7 +183,7 @@ export function useSocket({ mode, onSignal, autoConnect = true }) {
         case "offer":
         case "answer":
         case "ice":
-          onSignalRef.current?.(payload);
+          deliverSignal(payload);
           break;
         case "error":
           setError(payload.message);
@@ -153,19 +207,19 @@ export function useSocket({ mode, onSignal, autoConnect = true }) {
     });
 
     socket.addEventListener("close", () => {
-      if (socketRef.current !== socket) {
+      if (sharedConnection.socket !== socket) {
         return;
       }
       setStatus("disconnected");
-      if (shouldReconnectRef.current) {
-        reconnectTimerRef.current = window.setTimeout(() => {
-          connectRef.current?.();
+      if (sharedConnection.shouldReconnect) {
+        sharedConnection.reconnectTimer = window.setTimeout(() => {
+          sharedConnection.connect?.();
         }, 1600);
       }
     });
 
     socket.addEventListener("error", () => {
-      if (socketRef.current !== socket) {
+      if (sharedConnection.socket !== socket) {
         return;
       }
       setError("Connection problem. Retrying...");
@@ -187,7 +241,7 @@ export function useSocket({ mode, onSignal, autoConnect = true }) {
   ]);
 
   useEffect(() => {
-    connectRef.current = connect;
+    sharedConnection.connect = connect;
   }, [connect]);
 
   useEffect(() => {
@@ -195,14 +249,8 @@ export function useSocket({ mode, onSignal, autoConnect = true }) {
       connect();
     }
 
-    return () => {
-      window.clearTimeout(reconnectTimerRef.current);
-      shouldReconnectRef.current = false;
-      socketRef.current?.close(1000, "page changed");
-      socketRef.current = null;
-      resetSession();
-    };
-  }, [autoConnect, connect, resetSession]);
+    return undefined;
+  }, [autoConnect, connect]);
 
   const sendChat = useCallback(
     (text) => {
@@ -232,6 +280,16 @@ export function useSocket({ mode, onSignal, autoConnect = true }) {
     send({ type: "next" });
   }, [clearGame, clearMessages, send, setInitiator, setStatus]);
 
+  const upgradeToVideo = useCallback(() => {
+    if (send({ type: "upgrade", mode: "video" })) {
+      addMessage({
+        role: "system",
+        text: "Video request sent. Chat history is staying put.",
+        sentAt: new Date().toISOString(),
+      });
+    }
+  }, [addMessage, send]);
+
   const report = useCallback(() => {
     send({ type: "report", data: "User reported from client controls." });
   }, [send]);
@@ -245,6 +303,7 @@ export function useSocket({ mode, onSignal, autoConnect = true }) {
 
   return {
     status,
+    mode: activeMode,
     messages,
     isInitiator,
     error,
@@ -253,8 +312,19 @@ export function useSocket({ mode, onSignal, autoConnect = true }) {
     sendChat,
     sendSignal,
     sendGame,
+    upgradeToVideo,
     next,
     report,
     reconnect: connect,
+    disconnect: disconnectSocketSession,
   };
+}
+
+export function disconnectSocketSession() {
+  window.clearTimeout(sharedConnection.reconnectTimer);
+  sharedConnection.shouldReconnect = false;
+  sharedConnection.socket?.close(1000, "leaving room");
+  sharedConnection.socket = null;
+  pendingSignals.length = 0;
+  useSessionStore.getState().resetSession();
 }

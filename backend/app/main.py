@@ -199,6 +199,50 @@ class ConnectionManager:
             await self.send(sender_id, {"type": "game_state", "data": sender_state})
             await self.send(partner_id, {"type": "game_state", "data": partner_state})
 
+    async def upgrade(self, sender_id: str, mode: str) -> None:
+        if mode != "video":
+            await self.send(sender_id, {"type": "error", "message": "That upgrade path does not exist yet."})
+            return
+
+        partner_id: str | None = None
+        async with self.lock:
+            sender = self.clients.get(sender_id)
+            partner_id = self.partners.get(sender_id)
+            partner = self.clients.get(partner_id) if partner_id else None
+            if not sender or not partner_id or not partner:
+                partner_id = None
+            else:
+                sender.mode = mode
+                partner.mode = mode
+                self._remove_from_waiting_unlocked(sender_id)
+                self._remove_from_waiting_unlocked(partner_id)
+
+        if not partner_id:
+            await self.send(sender_id, {"type": "error", "message": "Match first, then escalate the eye contact."})
+            return
+
+        upgraded_at = now_iso()
+        await self.send(
+            sender_id,
+            {
+                "type": "mode_changed",
+                "mode": mode,
+                "initiator": True,
+                "changedAt": upgraded_at,
+                "message": "Video mode unlocked. The chat receipts survived.",
+            },
+        )
+        await self.send(
+            partner_id,
+            {
+                "type": "mode_changed",
+                "mode": mode,
+                "initiator": False,
+                "changedAt": upgraded_at,
+                "message": "They upgraded the room to video. The chat receipts survived.",
+            },
+        )
+
     async def relay(self, sender_id: str, payload: dict[str, Any]) -> None:
         async with self.lock:
             partner_id = self.partners.get(sender_id)
@@ -547,6 +591,8 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                 await manager.report(client.id, payload.get("data", "No reason provided."))
             elif message_type == "game":
                 await manager.game(client.id, payload.get("data", {}))
+            elif message_type == "upgrade":
+                await manager.upgrade(client.id, payload.get("mode", "video"))
             elif message_type in {"message", "offer", "answer", "ice"}:
                 if message_type == "message" and len(str(payload.get("data", ""))) > 1200:
                     await manager.send(client.id, {"type": "error", "message": "Essay detected. Trim it."})
