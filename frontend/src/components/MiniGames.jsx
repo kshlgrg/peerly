@@ -1,10 +1,10 @@
 import { Dice5, Gamepad2 } from "lucide-react";
 
 const games = [
-  ["tic_tac_toe", "Tic Tac Toe", "Fast ego damage."],
-  ["connect_four", "Connect Four", "Gravity but petty."],
-  ["dice_race", "Dice Race", "Ludo-ish sprint. Server rolls."],
-  ["loot_tiles", "Loot Tiles", "Pick mystery tiles, steal points."],
+  ["tic_tac_toe", "Tic Tac Toe", "Tiny board, loud ego funeral."],
+  ["connect_four", "Connect Four", "Gravity doing emotional damage."],
+  ["dice_race", "Dice Race", "Server rolls. Your excuses do not."],
+  ["loot_tiles", "Loot Tiles", "Mystery points for suspicious people."],
 ];
 
 export default function MiniGames({ compact = false, disabled = false, gameState, gameError, onGame }) {
@@ -23,9 +23,9 @@ export default function MiniGames({ compact = false, disabled = false, gameState
       <div className="flex items-center justify-between gap-3">
         <p className="flex items-center gap-2 text-xs font-black text-amber">
           <Gamepad2 size={15} aria-hidden="true" />
-          matched room games
+          matched room menace
         </p>
-        <span className="text-xs font-black text-copper">turns server-checked</span>
+        <span className="text-xs font-black text-copper">server referees the nonsense</span>
       </div>
 
       <div className={`grid gap-2 ${compact ? "grid-cols-2" : "sm:grid-cols-4"}`}>
@@ -47,7 +47,7 @@ export default function MiniGames({ compact = false, disabled = false, gameState
 
       {!gameState ? (
         <p className="border-2 border-line bg-ink p-3 text-xs font-bold leading-5 text-cream/55">
-          Start a game after matching. Refreshing or skipping forfeits the room state, because loopholes are for cowards.
+          Match first, then start a game. Skipping wipes the room state, because loopholes are for people with weak lore.
         </p>
       ) : (
         <div className="border-2 border-line bg-ink p-3">
@@ -78,7 +78,7 @@ function GameHeader({ gameState, isYourTurn }) {
     <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <p className="text-xs font-black text-amber">
-          {labelForGame(gameState.type)} | you are {gameState.you}
+          {labelForGame(gameState.type)} | you are {gameState.you}, unfortunately
         </p>
         <p className="mt-1 text-[10px] font-bold leading-4 text-cream/50">{gameState.message}</p>
       </div>
@@ -148,12 +148,12 @@ function DiceRace({ state, move, isYourTurn }) {
       <RaceBar label="B" value={b} target={target} mine={state.you === "B"} />
       {state.lastRoll && (
         <p className="text-xs font-black text-cream/60">
-          Last roll: {state.lastRoll.player} rolled {state.lastRoll.value}
+          Last roll: {state.lastRoll.player} rolled {state.lastRoll.value}. Math has chosen violence.
         </p>
       )}
       <button className="command-button min-h-10 w-full text-xs" type="button" disabled={!isYourTurn} onClick={() => move()}>
         <Dice5 size={14} aria-hidden="true" />
-        roll server dice
+        roll the blame cube
       </button>
     </div>
   );
@@ -163,8 +163,8 @@ function LootTiles({ state, move, isYourTurn }) {
   return (
     <div className="space-y-3">
       <div className="flex justify-between text-xs font-black text-cream/70">
-        <span>A score: {state.scores?.A ?? 0}</span>
-        <span>B score: {state.scores?.B ?? 0}</span>
+        <span>A loot: {state.scores?.A ?? 0}</span>
+        <span>B loot: {state.scores?.B ?? 0}</span>
       </div>
       <div className="grid grid-cols-3 gap-2">
         {state.claimed.map((owner, index) => (
