@@ -1,5 +1,7 @@
-import { Camera, Mic, MonitorUp, SendHorizonal } from "lucide-react";
+import { Camera, Mic, MonitorUp, SendHorizonal, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+
+import MiniGames from "./MiniGames.jsx";
 
 export const filters = [
   { id: "clean", label: "Clean", className: "video-filter-clean" },
@@ -17,10 +19,19 @@ export default function VideoBox({
   mediaError,
   messages,
   onSend,
-  activeFilter,
+  gameState,
+  gameError,
+  onGame,
+  onAlienVoiceChange,
   alienVoiceEnabled,
 }) {
+  const [activeFilter, setActiveFilter] = useState(filters[1]);
   const mobileLocalVideoRef = useRef(null);
+
+  function chooseFilter(filter) {
+    setActiveFilter(filter);
+    onAlienVoiceChange?.(filter.id === "alien");
+  }
 
   useEffect(() => {
     if (mobileLocalVideoRef.current && localVideoRef.current?.srcObject) {
@@ -45,6 +56,23 @@ export default function VideoBox({
         <div className="absolute left-4 top-4 flex items-center gap-2 rounded-md border-2 border-line bg-amber px-3 py-2 font-mono text-xs font-black uppercase text-ink">
           <MonitorUp size={15} aria-hidden="true" />
           Stranger danger, but make it campus
+        </div>
+        <div className="terminal-panel absolute bottom-4 left-4 z-10 flex max-w-[calc(100%-9rem)] flex-wrap gap-2 bg-ink/90 p-2 backdrop-blur sm:max-w-[calc(100%-11rem)] lg:max-w-[calc(100%-2rem)]">
+          {filters.map((filter) => (
+            <button
+              key={filter.id}
+              className={`min-h-9 border-2 px-3 font-mono text-[10px] font-black uppercase transition ${
+                activeFilter.id === filter.id
+                  ? "border-copper bg-copper text-ink"
+                  : "border-line bg-[#120015] text-cream/70 hover:border-amber hover:text-amber"
+              }`}
+              type="button"
+              onClick={() => chooseFilter(filter)}
+              aria-pressed={activeFilter.id === filter.id}
+            >
+              {filter.label}
+            </button>
+          ))}
         </div>
         <div className="terminal-panel screen-panel absolute bottom-4 right-4 z-10 h-28 w-28 overflow-hidden bg-ink shadow-[6px_6px_0_rgba(255,79,216,0.65)] sm:h-32 sm:w-32 lg:hidden">
           <video
@@ -87,13 +115,19 @@ export default function VideoBox({
 
         <div className="terminal-panel space-y-3 p-4 font-mono text-sm font-bold uppercase">
           <div className="flex items-center gap-3 text-cream/75">
-            <Mic size={16} className="text-copper" aria-hidden="true" />
+            {alienVoiceEnabled ? (
+              <Sparkles size={16} className="text-copper" aria-hidden="true" />
+            ) : (
+              <Mic size={16} className="text-copper" aria-hidden="true" />
+            )}
             {alienVoiceEnabled
               ? "Alien mic is live. You now sound like campus Wi-Fi gained sentience."
               : "Video is peer-to-peer. Server is not your nosy auntie."}
           </div>
           {mediaError && <p className="text-amber">{mediaError}</p>}
         </div>
+
+        <MiniGames compact disabled={status !== "matched"} gameState={gameState} gameError={gameError} onGame={onGame} />
 
         <MiniVideoChat messages={messages} onSend={onSend} disabled={status !== "matched"} />
       </aside>
