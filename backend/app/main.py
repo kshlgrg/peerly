@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import random
 from collections import deque
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -21,7 +22,7 @@ def csv_env(name: str, default: str) -> list[str]:
 
 CORS_ORIGINS = csv_env(
     "PEERLY_CORS_ORIGINS",
-    "http://localhost:5173,http://127.0.0.1:5173",
+    "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174",
 )
 ALLOWED_WS_ORIGINS = set(csv_env("PEERLY_WS_ORIGINS", ",".join(CORS_ORIGINS)))
 ALLOW_ANY_WS_ORIGIN = "*" in ALLOWED_WS_ORIGINS
@@ -49,6 +50,7 @@ class ConnectionManager:
         self.partners: dict[str, str] = {}
         self.skip_blocks: dict[str, set[str]] = {}
         self.reports: deque[dict[str, Any]] = deque(maxlen=250)
+        self.games: dict[str, dict[str, Any]] = {}
         self.lock = asyncio.Lock()
 
     async def connect(self, websocket: WebSocket) -> Client:
@@ -74,6 +76,7 @@ class ConnectionManager:
             partner_id = self.partners.pop(client_id, None)
             if partner_id:
                 self.partners.pop(partner_id, None)
+                self.games.pop(pair_key(client_id, partner_id), None)
                 partner = self.clients.get(partner_id)
                 if partner:
                     partner_to_requeue = partner_id
@@ -158,6 +161,44 @@ class ConnectionManager:
                 if affected_id in self.clients:
                     await self.join(affected_id, mode)
 
+    async def game(self, sender_id: str, payload: dict[str, Any]) -> None:
+        error_message: str | None = None
+        sender_state: dict[str, Any] | None = None
+        partner_state: dict[str, Any] | None = None
+        partner_id: str | None = None
+
+        async with self.lock:
+            partner_id = self.partners.get(sender_id)
+            if not partner_id:
+                error_message = "Match first, then cook."
+            else:
+                key = pair_key(sender_id, partner_id)
+                action = payload.get("action")
+                game_type = payload.get("game")
+                move = payload.get("move", {})
+
+                if action == "start":
+                    game = self._new_game_unlocked(game_type, sender_id, partner_id)
+                    self.games[key] = game
+                else:
+                    game = self.games.get(key)
+                    if not game:
+                        error_message = "Start a game first."
+                    else:
+                        error_message = self._apply_game_move_unlocked(game, sender_id, move)
+
+                if not error_message:
+                    state = public_game_state(self.games[key], sender_id, partner_id)
+                    sender_state = state["sender"]
+                    partner_state = state["partner"]
+
+        if error_message:
+            await self.send(sender_id, {"type": "game_error", "message": error_message})
+            return
+        if sender_state and partner_state and partner_id:
+            await self.send(sender_id, {"type": "game_state", "data": sender_state})
+            await self.send(partner_id, {"type": "game_state", "data": partner_state})
+
     async def relay(self, sender_id: str, payload: dict[str, Any]) -> None:
         async with self.lock:
             partner_id = self.partners.get(sender_id)
@@ -215,6 +256,7 @@ class ConnectionManager:
             return [client_id]
 
         self.partners.pop(partner_id, None)
+        self.games.pop(pair_key(client_id, partner_id), None)
         return [client_id, partner_id]
 
     def _pop_match_unlocked(self, client_id: str, mode: str) -> str | None:
@@ -242,9 +284,228 @@ class ConnectionManager:
         self.skip_blocks.setdefault(first_id, set()).add(second_id)
         self.skip_blocks.setdefault(second_id, set()).add(first_id)
 
+    def _new_game_unlocked(self, game_type: str, first_id: str, second_id: str) -> dict[str, Any]:
+        if game_type == "connect_four":
+            return {
+                "type": "connect_four",
+                "players": [first_id, second_id],
+                "turn": first_id,
+                "board": [[None for _ in range(7)] for _ in range(6)],
+                "status": "playing",
+                "winner": None,
+                "message": "Connect Four started. Drop discs, not standards.",
+            }
+
+        if game_type == "dice_race":
+            return {
+                "type": "dice_race",
+                "players": [first_id, second_id],
+                "turn": first_id,
+                "positions": {first_id: 0, second_id: 0},
+                "lastRoll": None,
+                "status": "playing",
+                "winner": None,
+                "message": "Dice Race started. Server rolls, no fake luck allowed.",
+            }
+
+        if game_type == "loot_tiles":
+            values = list(range(1, 10))
+            random.shuffle(values)
+            return {
+                "type": "loot_tiles",
+                "players": [first_id, second_id],
+                "turn": first_id,
+                "values": values,
+                "claimed": [None for _ in range(9)],
+                "scores": {first_id: 0, second_id: 0},
+                "status": "playing",
+                "winner": None,
+                "message": "Loot Tiles started. Pick tiles, collect points, trust no square.",
+            }
+
+        return {
+            "type": "tic_tac_toe",
+            "players": [first_id, second_id],
+            "turn": first_id,
+            "board": [None for _ in range(9)],
+            "status": "playing",
+            "winner": None,
+            "message": "Tic Tac Toe started. Ancient game, modern ego damage.",
+        }
+
+    def _apply_game_move_unlocked(self, game: dict[str, Any], player_id: str, move: dict[str, Any]) -> str | None:
+        if game["status"] != "playing":
+            return "That game is already done. Start a new one."
+        if game["turn"] != player_id:
+            return "Not your turn. The queue of destiny says wait."
+
+        game_type = game["type"]
+        if game_type == "tic_tac_toe":
+            return apply_tic_tac_toe_move(game, player_id, move)
+        if game_type == "connect_four":
+            return apply_connect_four_move(game, player_id, move)
+        if game_type == "dice_race":
+            return apply_dice_race_move(game, player_id)
+        if game_type == "loot_tiles":
+            return apply_loot_tiles_move(game, player_id, move)
+        return "Unknown game."
+
 
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def pair_key(first_id: str, second_id: str) -> str:
+    return "::".join(sorted([first_id, second_id]))
+
+
+def other_player(game: dict[str, Any], player_id: str) -> str:
+    return game["players"][1] if game["players"][0] == player_id else game["players"][0]
+
+
+def player_mark(game: dict[str, Any], player_id: str) -> str:
+    return "A" if game["players"][0] == player_id else "B"
+
+
+def finish_or_switch_turn(game: dict[str, Any], winner: str | None, draw: bool = False) -> None:
+    if winner:
+        game["status"] = "finished"
+        game["winner"] = winner
+        game["message"] = "Game over. Someone's ego just took structural damage."
+    elif draw:
+        game["status"] = "finished"
+        game["winner"] = "draw"
+        game["message"] = "Draw. Nobody wins, everybody pretends that was strategy."
+    else:
+        game["turn"] = other_player(game, game["turn"])
+        game["message"] = "Move accepted. Your turn, professor chaos."
+
+
+def apply_tic_tac_toe_move(game: dict[str, Any], player_id: str, move: dict[str, Any]) -> str | None:
+    index = move.get("index")
+    if not isinstance(index, int) or index < 0 or index > 8:
+        return "Pick a valid square."
+    if game["board"][index] is not None:
+        return "That square is taken. Cheating attempt denied."
+
+    game["board"][index] = player_mark(game, player_id)
+    winner_mark = winning_mark(game["board"], [(0, 1, 2), (3, 4, 5), (6, 7, 8), (0, 3, 6), (1, 4, 7), (2, 5, 8), (0, 4, 8), (2, 4, 6)])
+    winner = player_for_mark(game, winner_mark)
+    finish_or_switch_turn(game, winner, all(cell is not None for cell in game["board"]))
+    return None
+
+
+def apply_connect_four_move(game: dict[str, Any], player_id: str, move: dict[str, Any]) -> str | None:
+    column = move.get("column")
+    if not isinstance(column, int) or column < 0 or column > 6:
+        return "Pick a valid column."
+
+    board = game["board"]
+    target_row = None
+    for row in range(5, -1, -1):
+        if board[row][column] is None:
+            target_row = row
+            break
+    if target_row is None:
+        return "That column is full. Gravity said no."
+
+    board[target_row][column] = player_mark(game, player_id)
+    winner_mark = connect_four_winner(board)
+    winner = player_for_mark(game, winner_mark)
+    draw = all(board[0][column_index] is not None for column_index in range(7))
+    finish_or_switch_turn(game, winner, draw)
+    return None
+
+
+def apply_dice_race_move(game: dict[str, Any], player_id: str) -> str | None:
+    roll = random.randint(1, 6)
+    game["positions"][player_id] = min(24, game["positions"][player_id] + roll)
+    game["lastRoll"] = {"player": player_mark(game, player_id), "value": roll}
+    winner = player_id if game["positions"][player_id] >= 24 else None
+    finish_or_switch_turn(game, winner)
+    return None
+
+
+def apply_loot_tiles_move(game: dict[str, Any], player_id: str, move: dict[str, Any]) -> str | None:
+    index = move.get("index")
+    if not isinstance(index, int) or index < 0 or index > 8:
+        return "Pick a valid tile."
+    if game["claimed"][index] is not None:
+        return "That tile is already looted. Hands off."
+
+    game["claimed"][index] = player_mark(game, player_id)
+    game["scores"][player_id] += game["values"][index]
+    if all(owner is not None for owner in game["claimed"]):
+        first_id, second_id = game["players"]
+        if game["scores"][first_id] == game["scores"][second_id]:
+            finish_or_switch_turn(game, None, True)
+        else:
+            finish_or_switch_turn(game, first_id if game["scores"][first_id] > game["scores"][second_id] else second_id)
+    else:
+        finish_or_switch_turn(game, None)
+    return None
+
+
+def winning_mark(board: list[str | None], lines: list[tuple[int, int, int]]) -> str | None:
+    for a, b, c in lines:
+        if board[a] and board[a] == board[b] == board[c]:
+            return board[a]
+    return None
+
+
+def connect_four_winner(board: list[list[str | None]]) -> str | None:
+    directions = [(0, 1), (1, 0), (1, 1), (1, -1)]
+    for row in range(6):
+        for column in range(7):
+            mark = board[row][column]
+            if not mark:
+                continue
+            for row_step, column_step in directions:
+                if all(
+                    0 <= row + row_step * offset < 6
+                    and 0 <= column + column_step * offset < 7
+                    and board[row + row_step * offset][column + column_step * offset] == mark
+                    for offset in range(4)
+                ):
+                    return mark
+    return None
+
+
+def player_for_mark(game: dict[str, Any], mark: str | None) -> str | None:
+    if mark == "A":
+        return game["players"][0]
+    if mark == "B":
+        return game["players"][1]
+    return None
+
+
+def public_game_state(game: dict[str, Any], sender_id: str, partner_id: str) -> dict[str, Any]:
+    return {
+        "sender": serialize_game(game, sender_id),
+        "partner": serialize_game(game, partner_id),
+    }
+
+
+def serialize_game(game: dict[str, Any], viewer_id: str) -> dict[str, Any]:
+    base = {
+        "type": game["type"],
+        "you": player_mark(game, viewer_id),
+        "turn": player_mark(game, game["turn"]) if game.get("turn") else None,
+        "status": game["status"],
+        "winner": player_mark(game, game["winner"]) if game["winner"] not in {None, "draw"} else game["winner"],
+        "message": game["message"],
+    }
+    if game["type"] in {"tic_tac_toe", "connect_four"}:
+        base["board"] = game["board"]
+    if game["type"] == "dice_race":
+        base["positions"] = {player_mark(game, player_id): position for player_id, position in game["positions"].items()}
+        base["lastRoll"] = game["lastRoll"]
+        base["target"] = 24
+    if game["type"] == "loot_tiles":
+        base["claimed"] = game["claimed"]
+        base["revealed"] = [value if owner is not None else None for value, owner in zip(game["values"], game["claimed"], strict=False)]
+        base["scores"] = {player_mark(game, player_id): score for player_id, score in game["scores"].items()}
+    return base
 
 
 manager = ConnectionManager()
@@ -284,6 +545,8 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                 await manager.next(client.id)
             elif message_type == "report":
                 await manager.report(client.id, payload.get("data", "No reason provided."))
+            elif message_type == "game":
+                await manager.game(client.id, payload.get("data", {}))
             elif message_type in {"message", "offer", "answer", "ice"}:
                 if message_type == "message" and len(str(payload.get("data", ""))) > 1200:
                     await manager.send(client.id, {"type": "error", "message": "Essay detected. Trim it."})

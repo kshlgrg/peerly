@@ -1,6 +1,8 @@
 import { SendHorizonal, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import MiniGames from "./MiniGames.jsx";
+
 const cheesyLines = [
   "Be honest: are you always this interesting or is PeerLy carrying?",
   "If this convo flops, I am blaming the Wi-Fi and my character development.",
@@ -9,7 +11,7 @@ const cheesyLines = [
   "I was going to say something normal, but that felt off-brand.",
 ];
 
-export default function ChatBox({ messages, onSend, disabled }) {
+export default function ChatBox({ messages, onSend, disabled, gameState, gameError, onGame }) {
   const [draft, setDraft] = useState("");
   const [cheesyMode, setCheesyMode] = useState(false);
   const [cheeseIndex, setCheeseIndex] = useState(0);
@@ -43,7 +45,7 @@ export default function ChatBox({ messages, onSend, disabled }) {
   }
 
   return (
-    <section className="terminal-panel screen-panel flex min-h-0 flex-1 flex-col">
+    <section className="terminal-panel screen-panel flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="flex flex-col gap-3 border-b border-line bg-[#100014] p-3 font-mono uppercase sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="flex items-center gap-2 text-xs font-black text-amber">
@@ -82,7 +84,10 @@ export default function ChatBox({ messages, onSend, disabled }) {
           </button>
         </div>
       </div>
-      <div ref={listRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+      <div className="border-b border-line p-3">
+        <MiniGames disabled={disabled} gameState={gameState} gameError={gameError} onGame={onGame} />
+      </div>
+      <div ref={listRef} className="min-h-48 flex-1 space-y-3 overflow-y-auto p-4 lg:min-h-0">
         {messages.length === 0 ? (
           <div className="flex h-full items-center justify-center text-center font-mono text-sm font-black uppercase text-amber">
             {cheesyMode ? "Cheese cannon armed. Waiting for a target." : "Queue is loading. Main character arriving soon."}

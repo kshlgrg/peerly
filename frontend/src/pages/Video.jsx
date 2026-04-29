@@ -35,27 +35,27 @@ export default function Video() {
   }, [reconnect, webRTC.localReady]);
 
   return (
-    <main className="mx-auto flex h-screen w-full max-w-7xl flex-col gap-4 p-4">
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <main className="peerly-shell flex min-h-[100dvh] w-full flex-col gap-3 p-3 sm:gap-4 sm:p-4 lg:h-[100dvh] lg:overflow-hidden">
+      <header className="relative z-10 mx-auto flex w-full max-w-7xl shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <MatchStatus status={socket.status} error={socket.error} />
-        <Controls
-          onNext={socket.next}
-          onReport={socket.report}
-          disabled={socket.status === "connecting" || socket.status === "disconnected"}
-          reportDisabled={socket.status !== "matched"}
-        />
+        <Controls onNext={socket.next} disabled={socket.status === "connecting" || socket.status === "disconnected"} />
       </header>
-      <VideoBox
-        localVideoRef={webRTC.localVideoRef}
-        remoteVideoRef={webRTC.remoteVideoRef}
-        status={socket.status}
-        localReady={webRTC.localReady}
-        mediaError={webRTC.mediaError}
-        messages={socket.messages}
-        onSend={socket.sendChat}
-        onAlienVoiceChange={setAlienVoiceEnabled}
-        alienVoiceEnabled={alienVoiceEnabled}
-      />
+      <div className="relative z-10 mx-auto flex min-h-0 w-full max-w-7xl flex-1 lg:h-full">
+        <VideoBox
+          localVideoRef={webRTC.localVideoRef}
+          remoteVideoRef={webRTC.remoteVideoRef}
+          status={socket.status}
+          localReady={webRTC.localReady}
+          mediaError={webRTC.mediaError}
+          messages={socket.messages}
+          onSend={socket.sendChat}
+          gameState={socket.gameState}
+          gameError={socket.gameError}
+          onGame={socket.sendGame}
+          onAlienVoiceChange={setAlienVoiceEnabled}
+          alienVoiceEnabled={alienVoiceEnabled}
+        />
+      </div>
     </main>
   );
 }

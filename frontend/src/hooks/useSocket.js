@@ -23,13 +23,18 @@ export function useSocket({ mode, onSignal, autoConnect = true }) {
     messages,
     isInitiator,
     error,
+    gameState,
+    gameError,
     setClientId,
     setMode,
     setStatus,
     setInitiator,
     setError,
+    setGameState,
+    setGameError,
     addMessage,
     clearMessages,
+    clearGame,
     resetSession,
   } = useSessionStore();
 
@@ -96,6 +101,7 @@ export function useSocket({ mode, onSignal, autoConnect = true }) {
           break;
         case "matched":
           clearMessages();
+          clearGame();
           setStatus("matched");
           setInitiator(Boolean(payload.initiator));
           addMessage({
@@ -107,6 +113,7 @@ export function useSocket({ mode, onSignal, autoConnect = true }) {
         case "partner_left":
           setStatus("waiting");
           setInitiator(false);
+          clearGame();
           addMessage({
             role: "system",
             text: payload.message ?? "They dipped. Queueing a better plot twist...",
@@ -134,6 +141,12 @@ export function useSocket({ mode, onSignal, autoConnect = true }) {
             sentAt: new Date().toISOString(),
           });
           break;
+        case "game_state":
+          setGameState(payload.data);
+          break;
+        case "game_error":
+          setGameError(payload.message);
+          break;
         default:
           break;
       }
@@ -159,11 +172,14 @@ export function useSocket({ mode, onSignal, autoConnect = true }) {
     });
   }, [
     addMessage,
+    clearGame,
     clearMessages,
     mode,
     send,
     setClientId,
     setError,
+    setGameError,
+    setGameState,
     setInitiator,
     setMode,
     setStatus,
@@ -210,22 +226,33 @@ export function useSocket({ mode, onSignal, autoConnect = true }) {
 
   const next = useCallback(() => {
     clearMessages();
+    clearGame();
     setStatus("waiting");
     setInitiator(false);
     send({ type: "next" });
-  }, [clearMessages, send, setInitiator, setStatus]);
+  }, [clearGame, clearMessages, send, setInitiator, setStatus]);
 
   const report = useCallback(() => {
     send({ type: "report", data: "User reported from client controls." });
   }, [send]);
+
+  const sendGame = useCallback(
+    (data) => {
+      send({ type: "game", data });
+    },
+    [send],
+  );
 
   return {
     status,
     messages,
     isInitiator,
     error,
+    gameState,
+    gameError,
     sendChat,
     sendSignal,
+    sendGame,
     next,
     report,
     reconnect: connect,
