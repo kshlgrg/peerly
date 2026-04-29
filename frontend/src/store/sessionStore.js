@@ -8,6 +8,7 @@ const initialState = {
   messages: [],
   gameState: null,
   gameError: null,
+  videoRequest: null,
   error: null,
 };
 
@@ -21,6 +22,8 @@ export const useSessionStore = create((set) => ({
   setGameState: (gameState) => set({ gameState, gameError: null }),
   setGameError: (gameError) => set({ gameError }),
   clearGame: () => set({ gameState: null, gameError: null }),
+  setVideoRequest: (videoRequest) => set({ videoRequest }),
+  clearVideoRequest: () => set({ videoRequest: null }),
   addMessage: (message) =>
     set((state) => ({
       messages: [...state.messages, { id: crypto.randomUUID(), ...message }],

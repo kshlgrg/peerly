@@ -58,6 +58,7 @@ export function useSocket({ mode, onSignal, autoConnect = true }) {
     error,
     gameState,
     gameError,
+    videoRequest,
     setClientId,
     setMode,
     setStatus,
@@ -65,6 +66,8 @@ export function useSocket({ mode, onSignal, autoConnect = true }) {
     setError,
     setGameState,
     setGameError,
+    setVideoRequest,
+    clearVideoRequest,
     addMessage,
     clearMessages,
     clearGame,
@@ -145,6 +148,7 @@ export function useSocket({ mode, onSignal, autoConnect = true }) {
         case "matched":
           clearMessages();
           clearGame();
+          clearVideoRequest();
           setMode(payload.mode ?? mode);
           setStatus("matched");
           setInitiator(Boolean(payload.initiator));
@@ -155,6 +159,7 @@ export function useSocket({ mode, onSignal, autoConnect = true }) {
           });
           break;
         case "mode_changed":
+          clearVideoRequest();
           setMode(payload.mode);
           setStatus("matched");
           setInitiator(Boolean(payload.initiator));
@@ -168,9 +173,34 @@ export function useSocket({ mode, onSignal, autoConnect = true }) {
           setStatus("waiting");
           setInitiator(false);
           clearGame();
+          clearVideoRequest();
           addMessage({
             role: "system",
             text: payload.message ?? "They dipped. Queueing a better plot twist...",
+          });
+          break;
+        case "video_request":
+          setVideoRequest({ direction: "incoming", message: payload.message, requestedAt: payload.requestedAt });
+          addMessage({
+            role: "system",
+            text: payload.message ?? "Video request incoming. Choose wisely.",
+            sentAt: payload.requestedAt,
+          });
+          break;
+        case "video_request_sent":
+          setVideoRequest({ direction: "outgoing", message: payload.message, requestedAt: payload.requestedAt });
+          addMessage({
+            role: "system",
+            text: payload.message ?? "Video request sent. Awaiting their verdict.",
+            sentAt: payload.requestedAt,
+          });
+          break;
+        case "video_request_resolved":
+          clearVideoRequest();
+          addMessage({
+            role: "system",
+            text: payload.message ?? (payload.accepted ? "Video request accepted." : "Video request declined."),
+            sentAt: payload.respondedAt,
           });
           break;
         case "message":
@@ -231,12 +261,14 @@ export function useSocket({ mode, onSignal, autoConnect = true }) {
     mode,
     send,
     setClientId,
+    clearVideoRequest,
     setError,
     setGameError,
     setGameState,
     setInitiator,
     setMode,
     setStatus,
+    setVideoRequest,
     socketUrl,
   ]);
 
@@ -275,20 +307,29 @@ export function useSocket({ mode, onSignal, autoConnect = true }) {
   const next = useCallback(() => {
     clearMessages();
     clearGame();
+    clearVideoRequest();
     setStatus("waiting");
     setInitiator(false);
     send({ type: "next" });
-  }, [clearGame, clearMessages, send, setInitiator, setStatus]);
+  }, [clearGame, clearMessages, clearVideoRequest, send, setInitiator, setStatus]);
 
   const upgradeToVideo = useCallback(() => {
-    if (send({ type: "upgrade", mode: "video" })) {
+    if (send({ type: "video_request" })) {
       addMessage({
         role: "system",
-        text: "Video request sent. Chat history is staying put.",
+        text: "Requesting video. Chat receipts stay armed.",
         sentAt: new Date().toISOString(),
       });
     }
   }, [addMessage, send]);
+
+  const respondToVideoRequest = useCallback(
+    (accepted) => {
+      clearVideoRequest();
+      send({ type: "video_response", accepted });
+    },
+    [clearVideoRequest, send],
+  );
 
   const report = useCallback(() => {
     send({ type: "report", data: "User reported from client controls." });
@@ -309,10 +350,12 @@ export function useSocket({ mode, onSignal, autoConnect = true }) {
     error,
     gameState,
     gameError,
+    videoRequest,
     sendChat,
     sendSignal,
     sendGame,
     upgradeToVideo,
+    respondToVideoRequest,
     next,
     report,
     reconnect: connect,

@@ -1,4 +1,4 @@
-import { Video } from "lucide-react";
+import { Check, Video, X } from "lucide-react";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -9,10 +9,24 @@ import { useSocket } from "../hooks/useSocket.js";
 
 export default function Chat() {
   const navigate = useNavigate();
-  const { status, mode, messages, error, gameState, gameError, sendChat, sendGame, upgradeToVideo, next } = useSocket({
+  const {
+    status,
+    mode,
+    messages,
+    error,
+    gameState,
+    gameError,
+    videoRequest,
+    sendChat,
+    sendGame,
+    upgradeToVideo,
+    respondToVideoRequest,
+    next,
+  } = useSocket({
     mode: "text",
   });
   const isMatched = status === "matched";
+  const hasVideoRequest = Boolean(videoRequest);
 
   useEffect(() => {
     if (mode === "video") {
@@ -29,14 +43,55 @@ export default function Chat() {
             className="command-button border-copper bg-copper text-ink hover:bg-amber"
             type="button"
             onClick={upgradeToVideo}
-            disabled={!isMatched}
-            title="Keep this chat and switch the room to video"
+            disabled={!isMatched || hasVideoRequest}
+            title="Send a video request without losing this chat"
           >
             <Video size={17} aria-hidden="true" />
-            Upgrade to video
+            {hasVideoRequest ? "Video request pending" : "Request video chaos"}
           </button>
         </Controls>
       </header>
+      {videoRequest && (
+        <section className="relative z-10 mx-auto w-full max-w-6xl border-2 border-copper bg-[#100014] p-3 font-mono uppercase shadow-[7px_7px_0_rgba(255,79,216,0.7)]">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="flex items-center gap-2 text-sm font-black text-amber">
+                <Video size={16} aria-hidden="true" />
+                {videoRequest.direction === "incoming" ? "video request incoming" : "video request sent"}
+              </p>
+              <p className="mt-1 text-xs font-bold leading-5 text-cream/60">
+                {videoRequest.direction === "incoming"
+                  ? "They want face-card mode. Accept only if the chat has earned eyeballs."
+                  : "Waiting for consent. The camera stays in its lane until they accept."}
+              </p>
+            </div>
+            {videoRequest.direction === "incoming" ? (
+              <div className="flex flex-wrap gap-2">
+                <button
+                  className="command-button min-h-10 border-amber bg-amber px-3 text-xs text-ink hover:bg-copper"
+                  type="button"
+                  onClick={() => respondToVideoRequest(true)}
+                >
+                  <Check size={15} aria-hidden="true" />
+                  accept chaos
+                </button>
+                <button
+                  className="command-button min-h-10 border-line bg-ink px-3 text-xs text-cream hover:border-copper hover:text-copper"
+                  type="button"
+                  onClick={() => respondToVideoRequest(false)}
+                >
+                  <X size={15} aria-hidden="true" />
+                  decline politely-ish
+                </button>
+              </div>
+            ) : (
+              <span className="w-fit border-2 border-amber bg-amber px-3 py-2 text-xs font-black text-ink">
+                awaiting verdict
+              </span>
+            )}
+          </div>
+        </section>
+      )}
       <div className="relative z-10 mx-auto flex min-h-0 w-full max-w-6xl flex-1 lg:h-full">
         <ChatBox
           messages={messages}

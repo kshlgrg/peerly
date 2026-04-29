@@ -51,6 +51,7 @@ class ConnectionManager:
         self.skip_blocks: dict[str, set[str]] = {}
         self.reports: deque[dict[str, Any]] = deque(maxlen=250)
         self.games: dict[str, dict[str, Any]] = {}
+        self.video_requests: dict[str, str] = {}
         self.lock = asyncio.Lock()
 
     async def connect(self, websocket: WebSocket) -> Client:
@@ -77,6 +78,7 @@ class ConnectionManager:
             if partner_id:
                 self.partners.pop(partner_id, None)
                 self.games.pop(pair_key(client_id, partner_id), None)
+                self.video_requests.pop(pair_key(client_id, partner_id), None)
                 partner = self.clients.get(partner_id)
                 if partner:
                     partner_to_requeue = partner_id
@@ -199,6 +201,83 @@ class ConnectionManager:
             await self.send(sender_id, {"type": "game_state", "data": sender_state})
             await self.send(partner_id, {"type": "game_state", "data": partner_state})
 
+    async def request_video_upgrade(self, sender_id: str) -> None:
+        partner_id: str | None = None
+        async with self.lock:
+            sender = self.clients.get(sender_id)
+            partner_id = self.partners.get(sender_id)
+            partner = self.clients.get(partner_id) if partner_id else None
+            if not sender or not partner_id or not partner:
+                partner_id = None
+            else:
+                self.video_requests[pair_key(sender_id, partner_id)] = sender_id
+
+        if not partner_id:
+            await self.send(sender_id, {"type": "error", "message": "Match first, then request the face reveal."})
+            return
+
+        requested_at = now_iso()
+        await self.send(
+            sender_id,
+            {
+                "type": "video_request_sent",
+                "requestedAt": requested_at,
+                "message": "Video request sent. Now we wait to see if your aura has clearance.",
+            },
+        )
+        await self.send(
+            partner_id,
+            {
+                "type": "video_request",
+                "requestedAt": requested_at,
+                "message": "They want to upgrade to video. Accept only if the vibe survived inspection.",
+            },
+        )
+
+    async def respond_video_upgrade(self, sender_id: str, accepted: bool) -> None:
+        requester_id: str | None = None
+        async with self.lock:
+            responder = self.clients.get(sender_id)
+            requester_id = self.partners.get(sender_id)
+            requester = self.clients.get(requester_id) if requester_id else None
+            if not responder or not requester_id or not requester:
+                requester_id = None
+            else:
+                key = pair_key(sender_id, requester_id)
+                pending_requester_id = self.video_requests.get(key)
+                if pending_requester_id != requester_id:
+                    requester_id = None
+                else:
+                    self.video_requests.pop(key, None)
+
+        if not requester_id:
+            await self.send(sender_id, {"type": "error", "message": "No video request is waiting. The drama expired."})
+            return
+
+        if not accepted:
+            responded_at = now_iso()
+            await self.send(
+                sender_id,
+                {
+                    "type": "video_request_resolved",
+                    "accepted": False,
+                    "respondedAt": responded_at,
+                    "message": "You declined. Boundaries remain undefeated.",
+                },
+            )
+            await self.send(
+                requester_id,
+                {
+                    "type": "video_request_resolved",
+                    "accepted": False,
+                    "respondedAt": responded_at,
+                    "message": "Video request declined. Their camera said not today.",
+                },
+            )
+            return
+
+        await self.upgrade(requester_id, "video")
+
     async def upgrade(self, sender_id: str, mode: str) -> None:
         if mode != "video":
             await self.send(sender_id, {"type": "error", "message": "That upgrade path does not exist yet."})
@@ -216,6 +295,7 @@ class ConnectionManager:
                 partner.mode = mode
                 self._remove_from_waiting_unlocked(sender_id)
                 self._remove_from_waiting_unlocked(partner_id)
+                self.video_requests.pop(pair_key(sender_id, partner_id), None)
 
         if not partner_id:
             await self.send(sender_id, {"type": "error", "message": "Match first, then escalate the eye contact."})
@@ -301,6 +381,7 @@ class ConnectionManager:
 
         self.partners.pop(partner_id, None)
         self.games.pop(pair_key(client_id, partner_id), None)
+        self.video_requests.pop(pair_key(client_id, partner_id), None)
         return [client_id, partner_id]
 
     def _pop_match_unlocked(self, client_id: str, mode: str) -> str | None:
@@ -591,6 +672,10 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                 await manager.report(client.id, payload.get("data", "No reason provided."))
             elif message_type == "game":
                 await manager.game(client.id, payload.get("data", {}))
+            elif message_type == "video_request":
+                await manager.request_video_upgrade(client.id)
+            elif message_type == "video_response":
+                await manager.respond_video_upgrade(client.id, bool(payload.get("accepted")))
             elif message_type == "upgrade":
                 await manager.upgrade(client.id, payload.get("mode", "video"))
             elif message_type in {"message", "offer", "answer", "ice"}:
