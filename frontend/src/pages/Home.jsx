@@ -1,4 +1,4 @@
-import { Dice5, MessageSquareText, ShieldCheck, Sparkles, Video, Zap } from "lucide-react";
+import { Dice5, MessageSquareText, Sparkles, Video, Zap } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -44,28 +44,14 @@ export default function Home() {
                 PeerLy
               </h1>
 
-              <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_340px] lg:items-end">
-                <div>
-                  <p className="max-w-3xl text-lg font-black uppercase leading-8 text-amber sm:text-2xl">
-                    Anonymous student chat without profiles, bios, or LinkedIn cosplay.
-                  </p>
-                  <p className="mt-4 max-w-3xl text-sm leading-6 text-cream/70 sm:text-base">
-                    Pick text or video, get matched with a random peer, play tiny room games while waiting, and hit
-                    skip when the conversation starts paying rent in awkwardness.
-                  </p>
-                </div>
-
-                <div className="terminal-panel bg-[#100014] p-4">
-                  <div className="mb-3 flex items-center gap-2 text-xs font-black uppercase text-copper">
-                    <ShieldCheck size={15} aria-hidden="true" />
-                    current build
-                  </div>
-                  <div className="space-y-3 text-xs font-black uppercase text-cream/70">
-                    <p>mode: deployed MVP</p>
-                    <p>video: peer-to-peer</p>
-                    <p>backend: FastAPI WebSocket</p>
-                  </div>
-                </div>
+              <div className="mt-6">
+                <p className="max-w-4xl text-lg font-black uppercase leading-8 text-amber sm:text-2xl">
+                  Anonymous student chat without profiles, bios, or LinkedIn cosplay.
+                </p>
+                <p className="mt-4 max-w-4xl text-sm leading-6 text-cream/70 sm:text-base">
+                  Pick text or video, get matched with a random peer, play tiny room games when the room gets too quiet,
+                  and hit skip when the conversation starts paying rent in awkwardness.
+                </p>
               </div>
 
               <div className="mt-8 grid gap-4 sm:grid-cols-2">
