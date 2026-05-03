@@ -9,8 +9,8 @@ PeerLy is a real-time anonymous student chat and video app with random matching,
 
 PeerLy is maintained as a collaborative project.
 
-- [@RoshniSingh0116](https://github.com/RoshniSingh0116)
-- [@tishika25552-sys](https://github.com/tishika25552-sys)
+- Roshni Singh ([@RoshniSingh0116](https://github.com/RoshniSingh0116))
+- Tishika ([@tishika25552-sys](https://github.com/tishika25552-sys))
 
 ## What It Does
 
