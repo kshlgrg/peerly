@@ -4,7 +4,10 @@ PeerLy is a real-time anonymous student chat and video app with random matching,
 
 - Live app: https://peerly-web.onrender.com
 - API health: https://peerly-api.onrender.com/health
-- Repository: https://github.com/kshlgrg/peerly
+
+## Contributors
+
+PeerLy is maintained as a collaborative project. Add real contributors here with their consent and preferred name or GitHub handle.
 
 ## What It Does
 
