@@ -11,6 +11,7 @@ const sharedConnection = {
 };
 
 let activeOnSignal = null;
+// Hold WebRTC signaling messages until the video hook has registered its handler.
 const pendingSignals = [];
 
 function flushPendingSignals() {
