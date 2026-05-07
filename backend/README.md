@@ -13,6 +13,12 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 The WebSocket endpoint is available at `ws://localhost:8000/ws`.
 
+Health check:
+
+```text
+http://localhost:8000/health
+```
+
 ## Production
 
 Set these environment variables on the host:
