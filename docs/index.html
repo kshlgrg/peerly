@@ -306,6 +306,50 @@
         box-shadow: 8px 8px 0 rgba(217, 255, 0, 0.72);
       }
 
+      .float-sticker {
+        position: absolute;
+        z-index: 3;
+        border: 2px solid var(--ink);
+        border-radius: 4px;
+        background: var(--amber);
+        color: var(--ink);
+        padding: 0.45rem 0.65rem;
+        font-size: 0.68rem;
+        font-weight: 950;
+        text-transform: uppercase;
+        box-shadow: 4px 4px 0 var(--copper);
+      }
+
+      .float-sticker.pink {
+        background: var(--copper);
+        color: var(--ink);
+        box-shadow: 4px 4px 0 var(--cyan);
+      }
+
+      .float-sticker.cyan {
+        background: var(--cyan);
+        color: var(--ink);
+        box-shadow: 4px 4px 0 var(--violet);
+      }
+
+      .float-sticker.top-right {
+        top: 4.6rem;
+        right: 1rem;
+        transform: rotate(7deg);
+      }
+
+      .float-sticker.mid-left {
+        top: 14.2rem;
+        left: 0.65rem;
+        transform: rotate(-8deg);
+      }
+
+      .float-sticker.bottom-right {
+        right: 1.15rem;
+        bottom: 5.25rem;
+        transform: rotate(5deg);
+      }
+
       .grid-2,
       .grid-3,
       .grid-4 {
@@ -389,6 +433,108 @@
         color: var(--muted);
         font-size: 0.72rem;
         font-weight: 950;
+        text-transform: uppercase;
+      }
+
+      .signal-board {
+        display: grid;
+        gap: 0.55rem;
+        border: 2px solid var(--line);
+        border-radius: 6px;
+        background: rgba(5, 5, 5, 0.82);
+        padding: 0.85rem;
+      }
+
+      .signal-row {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 0.65rem;
+        align-items: center;
+        border: 2px solid rgba(217, 255, 0, 0.36);
+        border-radius: 4px;
+        padding: 0.6rem;
+      }
+
+      .signal-dot {
+        width: 0.75rem;
+        aspect-ratio: 1;
+        border: 2px solid var(--line);
+        border-radius: 999px;
+        background: var(--copper);
+        box-shadow: 0 0 0.8rem var(--copper);
+      }
+
+      .signal-row strong,
+      .signal-row span {
+        min-width: 0;
+        font-size: 0.72rem;
+        font-weight: 950;
+        text-transform: uppercase;
+      }
+
+      .signal-row span {
+        color: var(--muted);
+      }
+
+      .meme-wall {
+        position: relative;
+        z-index: 2;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.85rem;
+      }
+
+      .meme-card {
+        position: relative;
+        display: grid;
+        min-height: 14rem;
+        align-content: space-between;
+        gap: 1rem;
+        border: 2px solid var(--line);
+        border-radius: 5px;
+        background:
+          linear-gradient(135deg, rgba(255, 79, 216, 0.14), transparent 42%),
+          rgba(5, 5, 5, 0.82);
+        padding: 1rem;
+        overflow: hidden;
+      }
+
+      .meme-card::before {
+        position: absolute;
+        top: 0.6rem;
+        right: 0.6rem;
+        border: 2px solid var(--copper);
+        background: var(--ink);
+        color: var(--copper);
+        padding: 0.25rem 0.4rem;
+        content: "POV";
+        font-size: 0.6rem;
+        font-weight: 950;
+      }
+
+      .meme-card strong {
+        display: block;
+        max-width: 85%;
+        color: var(--amber);
+        font-size: clamp(0.92rem, 1.7vw, 1.3rem);
+        line-height: 1.05;
+        text-transform: uppercase;
+      }
+
+      .meme-card span {
+        color: var(--muted);
+        font-size: 0.74rem;
+        font-weight: 800;
+        line-height: 1.4;
+      }
+
+      .meme-punchline {
+        border-top: 2px solid var(--copper);
+        color: var(--copper);
+        padding-top: 0.65rem;
+        font-size: 0.8rem;
+        font-weight: 950;
+        line-height: 1.25;
         text-transform: uppercase;
       }
 
@@ -507,6 +653,66 @@
         font-size: clamp(2rem, 6vw, 5rem);
         font-weight: 950;
         animation: pulse 1.8s steps(4, end) infinite;
+      }
+
+      .consent-overlay {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        width: min(13rem, calc(100% - 2rem));
+        border: 2px solid var(--copper);
+        border-radius: 6px;
+        background: rgba(5, 5, 5, 0.9);
+        padding: 0.75rem;
+        box-shadow: 6px 6px 0 rgba(18, 255, 208, 0.62);
+      }
+
+      .consent-overlay strong,
+      .consent-overlay span {
+        display: block;
+        font-size: 0.68rem;
+        font-weight: 950;
+        line-height: 1.3;
+        text-transform: uppercase;
+      }
+
+      .consent-overlay strong {
+        color: var(--amber);
+      }
+
+      .consent-overlay span {
+        margin-top: 0.35rem;
+        color: var(--muted);
+      }
+
+      .filter-strip {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 0.35rem;
+        margin-top: 0.65rem;
+      }
+
+      .filter-strip span {
+        display: block;
+        min-height: 1.65rem;
+        border: 2px solid var(--line);
+        border-radius: 4px;
+      }
+
+      .filter-strip span:nth-child(1) {
+        background: var(--amber);
+      }
+
+      .filter-strip span:nth-child(2) {
+        background: var(--copper);
+      }
+
+      .filter-strip span:nth-child(3) {
+        background: var(--cyan);
+      }
+
+      .filter-strip span:nth-child(4) {
+        background: var(--violet);
       }
 
       .sidebar {
@@ -652,6 +858,41 @@
         line-height: 1.4;
       }
 
+      .demo-route {
+        display: grid;
+        gap: 0.65rem;
+        margin-top: 1rem;
+      }
+
+      .demo-card {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 0.7rem;
+        align-items: center;
+        border: 2px solid var(--line);
+        border-radius: 5px;
+        background: rgba(5, 5, 5, 0.78);
+        padding: 0.65rem;
+      }
+
+      .demo-card b {
+        display: grid;
+        width: 2rem;
+        aspect-ratio: 1;
+        place-items: center;
+        border: 2px solid var(--copper);
+        border-radius: 4px;
+        color: var(--amber);
+      }
+
+      .demo-card span {
+        color: var(--muted);
+        font-size: 0.72rem;
+        font-weight: 850;
+        line-height: 1.35;
+        text-transform: uppercase;
+      }
+
       .progress-wrap {
         display: flex;
         min-width: 10rem;
@@ -772,8 +1013,21 @@
         .grid-4,
         .flow,
         .video-interface,
+        .meme-wall,
         .metric-strip {
           grid-template-columns: 1fr;
+        }
+
+        .float-sticker {
+          position: static;
+          display: inline-flex;
+          width: fit-content;
+          margin-top: 0.65rem;
+          transform: none !important;
+        }
+
+        .phone-frame .float-sticker {
+          display: none;
         }
 
         .flow-step::after {
@@ -864,6 +1118,9 @@
             </div>
           </div>
           <div class="phone-frame" aria-label="PeerLy chat mockup">
+            <span class="float-sticker top-right">no bio, no trial</span>
+            <span class="float-sticker pink mid-left">savage line armed</span>
+            <span class="float-sticker cyan bottom-right">skip saves lives</span>
             <span class="status-pill">matched • try not to be boring</span>
             <div class="chat-bubble peer">You study here too or did the Wi-Fi summon you?</div>
             <div class="chat-bubble me">Both. My attendance is basically a rumor.</div>
@@ -898,17 +1155,54 @@
             <p class="lede">Students in the university have started using PeerLy, which means the idea escaped the localhost basement.</p>
             <p class="copy">The first goal was not to become another heavy social network. The goal was a low-pressure campus interaction layer: enter, match, talk, leave, repeat. Early student use gives us real behavior to observe: awkward openers, fast skips, curiosity around video, and strong demand for lighter social spaces.</p>
           </div>
-          <div class="metric-strip">
-            <div class="metric"><strong>0</strong><span>profiles required</span></div>
-            <div class="metric"><strong>2</strong><span>room modes</span></div>
-            <div class="metric"><strong>4</strong><span>mini games</span></div>
-            <div class="metric"><strong>∞</strong><span>campus lore potential</span></div>
+          <div class="stack">
+            <div class="metric-strip">
+              <div class="metric"><strong>0</strong><span>profiles required</span></div>
+              <div class="metric"><strong>2</strong><span>room modes</span></div>
+              <div class="metric"><strong>4</strong><span>mini games</span></div>
+              <div class="metric"><strong>∞</strong><span>campus lore potential</span></div>
+            </div>
+            <div class="signal-board" aria-label="Campus signal board">
+              <div class="signal-row"><i class="signal-dot" aria-hidden="true"></i><strong>hostel lobby</strong><span>typing...</span></div>
+              <div class="signal-row"><i class="signal-dot" aria-hidden="true"></i><strong>library Wi-Fi</strong><span>awkward opener found</span></div>
+              <div class="signal-row"><i class="signal-dot" aria-hidden="true"></i><strong>canteen queue</strong><span>video request pending</span></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="slide" data-title="Campus Meme Logic" data-notes="Use this slide to make the room laugh before the technical section. The point is that PeerLy has a product personality, not just socket plumbing.">
+          <div class="stack">
+            <p class="kicker">03 • campus meme logic</p>
+            <h2 class="slide-title wide">Memes Built Into The Mood</h2>
+            <p class="lede">PeerLy uses savage microcopy and visual jokes so the product feels like students made it for students.</p>
+            <div class="meme-wall">
+              <div class="meme-card">
+                <strong>When the chat opens with just "hey"</strong>
+                <span>The room detects minimum effort and starts charging aura tax.</span>
+                <div class="meme-punchline">reply or get skipped into history</div>
+              </div>
+              <div class="meme-card">
+                <strong>When video is requested too fast</strong>
+                <span>The consent gate politely tells the confidence to sit down.</span>
+                <div class="meme-punchline">accept first, camera later</div>
+              </div>
+              <div class="meme-card">
+                <strong>When Tic Tac Toe gets personal</strong>
+                <span>Nine tiles, two egos, one friendship now under review.</span>
+                <div class="meme-punchline">tiny board, huge damage</div>
+              </div>
+              <div class="meme-card">
+                <strong>When both people type at once</strong>
+                <span>Suddenly the silence graduates into full speed chaos.</span>
+                <div class="meme-punchline">yap velocity unlocked</div>
+              </div>
+            </div>
           </div>
         </article>
 
         <article class="slide" data-title="Core Features" data-notes="Walk through the feature set as product capabilities rather than implementation details.">
           <div class="stack">
-            <p class="kicker">03 • feature stack</p>
+            <p class="kicker">04 • feature stack</p>
             <h2 class="slide-title wide">Core Features</h2>
             <div class="grid-3">
               <div class="feature-card"><strong>Random Matching</strong><span>Mode-specific queues pair students into one-on-one rooms without profiles.</span></div>
@@ -923,7 +1217,7 @@
 
         <article class="slide two-col" data-title="Video Interface" data-notes="Use this slide to demo the actual product feeling: video area, side chat, filter controls, and the chaos arcade.">
           <div class="stack">
-            <p class="kicker">04 • interface showcase</p>
+            <p class="kicker">05 • interface showcase</p>
             <h2 class="slide-title wide">Video Mode, But Make It Campus</h2>
             <p class="lede">The video room is not a boring call screen. It is a small neon command center for awkward eye contact.</p>
             <p class="copy">The interface includes a main remote video surface, local preview, filter controls, side chat, and a collapsible chaos arcade. The layout gives video room to breathe while keeping games close enough to rescue dead air.</p>
@@ -931,11 +1225,12 @@
           <div class="video-interface">
             <div class="remote-screen">
               <span class="status-pill" style="position:absolute;left:1rem;top:1rem;">stranger danger, campus edition</span>
+              <div class="consent-overlay"><strong>video request sent</strong><span>other side must accept before camera shift</span></div>
               <div class="face-card">?</div>
               <span class="status-pill" style="position:absolute;left:1rem;bottom:1rem;">waiting for brave eye contact</span>
             </div>
             <div class="sidebar">
-              <div class="sidebar-box"><strong>You, unfortunately</strong><span>Local preview, filters, and camera permission reality check.</span></div>
+              <div class="sidebar-box"><strong>You, unfortunately</strong><span>Local preview, filters, and camera permission reality check.</span><div class="filter-strip" aria-label="Mock video filter swatches"><span></span><span></span><span></span><span></span></div></div>
               <div class="sidebar-box"><strong>Side chat</strong><span>No words yet. The silence has tenure.</span></div>
               <div class="mini-game"><strong>Chaos arcade</strong><div class="game-grid"><span>X</span><span>O</span><span>X</span><span>O</span><span>X</span><span></span><span></span><span>O</span><span></span></div></div>
             </div>
@@ -944,7 +1239,7 @@
 
         <article class="slide" data-title="System Design" data-notes="Explain the architecture simply. The backend coordinates, but media travels peer-to-peer after signaling.">
           <div class="stack">
-            <p class="kicker">05 • architecture</p>
+            <p class="kicker">06 • architecture</p>
             <h2 class="slide-title wide">How It Works</h2>
             <div class="flow">
               <div class="flow-step"><strong>React UI</strong><span>Routes for home, chat, and video; session state in Zustand.</span></div>
@@ -958,7 +1253,7 @@
 
         <article class="slide two-col" data-title="Tech Stack" data-notes="Keep this technical but readable. Mention why each technology fits the product.">
           <div class="stack">
-            <p class="kicker">06 • tech stack</p>
+            <p class="kicker">07 • tech stack</p>
             <h2 class="slide-title">Stack</h2>
             <p class="lede">Small enough to move fast, real enough to survive actual users.</p>
           </div>
@@ -973,7 +1268,7 @@
 
         <article class="slide" data-title="Team" data-notes="Introduce the team as a three-person project. Keep roles flexible unless exact ownership is finalized.">
           <div class="stack">
-            <p class="kicker">07 • team intro</p>
+            <p class="kicker">08 • team intro</p>
             <h2 class="slide-title wide">Three People, One Slightly Unhinged Platform</h2>
             <div class="grid-3">
               <div class="team-card"><strong>Kushal Garg</strong><span>Realtime architecture, product polish, deployment flow, and making the UI talk back.</span></div>
@@ -986,7 +1281,7 @@
 
         <article class="slide two-col" data-title="Team Contribution" data-notes="This is explicitly a mock contribution split. Use it as a visual for team discussion, not as Git history.">
           <div class="stack">
-            <p class="kicker">08 • mock contribution map</p>
+            <p class="kicker">09 • mock contribution map</p>
             <h2 class="slide-title wide">Who Did What</h2>
             <p class="lede">A presentation-friendly contribution split, not a fake commit graph.</p>
             <div class="contribution-bar" aria-label="Mock contribution split"><span></span><span></span><span></span></div>
@@ -1002,7 +1297,7 @@
 
         <article class="slide" data-title="Future Scope" data-notes="Frame future scope around safety, identity, scale, and campus-specific growth.">
           <div class="stack">
-            <p class="kicker">09 • future scope</p>
+            <p class="kicker">10 • future scope</p>
             <h2 class="slide-title wide">What Comes Next</h2>
             <div class="grid-4">
               <div class="scope-card"><strong>Campus Verification</strong><span>Email or invite-based access so rooms stay student-first.</span></div>
@@ -1019,7 +1314,7 @@
 
         <article class="slide two-col" data-title="Closing" data-notes="Close with the simple message: PeerLy makes spontaneous student connection easy, safe, and weird enough to remember.">
           <div class="stack">
-            <p class="kicker">10 • closing pitch</p>
+            <p class="kicker">11 • closing pitch</p>
             <h2 class="slide-title wide">PeerLy Makes Campus Less Quiet</h2>
             <p class="lede">A realtime student interaction layer where conversations can start fast, get weird, move to video with consent, and end without drama.</p>
             <p class="copy">The platform is already live, students have started trying it, and the product has a clear path from MVP to a safer campus network. No profiles. No algorithm babysitter. Just rooms, people, and the occasional emotional damage from Tic Tac Toe.</p>
@@ -1027,13 +1322,18 @@
           <div class="panel hot">
             <p class="kicker">demo script</p>
             <p class="lede">Open two devices. Match in text. Send a savage opener. Request video. Accept. Show chat surviving. Open chaos arcade. Skip. Applause, hopefully.</p>
+            <div class="demo-route">
+              <div class="demo-card"><b>1</b><span>Text match proves the room starts fast.</span></div>
+              <div class="demo-card"><b>2</b><span>Video request proves consent is required.</span></div>
+              <div class="demo-card"><b>3</b><span>Games prove the awkward silence has enemies.</span></div>
+            </div>
           </div>
         </article>
       </section>
 
       <footer class="bottombar">
         <div class="progress-wrap" aria-label="Slide progress">
-          <span class="slide-count" data-count>01 / 10</span>
+          <span class="slide-count" data-count>01 / 11</span>
           <div class="progress"><div class="progress-fill" data-progress></div></div>
         </div>
         <p class="print-hint">Use ← → keys • Press N for notes • Print to export PDF</p>
