@@ -1,0 +1,1092 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="PeerLy platform presentation: anonymous student chat, video rooms, room games, tech stack, team, and future scope."
+    />
+    <title>PeerLy Platform Presentation</title>
+    <style>
+      :root {
+        --ink: #050505;
+        --panel: #100014;
+        --panel-soft: rgba(16, 0, 20, 0.92);
+        --cream: #f7ffe7;
+        --muted: rgba(247, 255, 231, 0.62);
+        --line: #d9ff00;
+        --amber: #f8ff2e;
+        --copper: #ff4fd8;
+        --cyan: #12ffd0;
+        --violet: #7b2cff;
+        --blue: #41a7ff;
+        --danger: #ff6a3d;
+        color-scheme: dark;
+        font-family:
+          "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        min-width: 320px;
+        min-height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background:
+          linear-gradient(rgba(217, 255, 0, 0.06) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(18, 255, 208, 0.04) 1px, transparent 1px),
+          radial-gradient(circle at 18% 12%, rgba(255, 79, 216, 0.22), transparent 22rem),
+          radial-gradient(circle at 80% 16%, rgba(123, 44, 255, 0.18), transparent 24rem),
+          var(--ink);
+        background-size: 42px 42px, 42px 42px, auto, auto, auto;
+        color: var(--cream);
+      }
+
+      body::before {
+        position: fixed;
+        inset: 0;
+        z-index: 20;
+        pointer-events: none;
+        content: "";
+        background:
+          linear-gradient(transparent 50%, rgba(0, 0, 0, 0.18) 50%),
+          radial-gradient(circle at center, transparent 50%, rgba(0, 0, 0, 0.32));
+        background-size: 100% 5px, 100% 100%;
+        mix-blend-mode: soft-light;
+      }
+
+      button {
+        font: inherit;
+      }
+
+      .deck-shell {
+        position: relative;
+        isolation: isolate;
+        display: grid;
+        min-height: 100dvh;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        gap: 0.85rem;
+        padding: clamp(0.7rem, 1.5vw, 1.2rem);
+      }
+
+      .deck-shell::before {
+        position: fixed;
+        inset: 0;
+        z-index: -1;
+        pointer-events: none;
+        content: "";
+        background:
+          repeating-linear-gradient(90deg, transparent 0 88px, rgba(255, 79, 216, 0.16) 88px 90px),
+          repeating-linear-gradient(0deg, transparent 0 118px, rgba(18, 255, 208, 0.11) 118px 120px);
+        animation: grid-drift 20s linear infinite;
+      }
+
+      .topbar,
+      .bottombar,
+      .slide {
+        border: 2px solid var(--line);
+        border-radius: 6px;
+        background: var(--panel-soft);
+        box-shadow:
+          0 0 0 3px rgba(123, 44, 255, 0.82),
+          7px 7px 0 rgba(255, 79, 216, 0.86);
+      }
+
+      .topbar,
+      .bottombar {
+        position: relative;
+        z-index: 4;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 0.75rem;
+        text-transform: uppercase;
+      }
+
+      .brand-lockup {
+        display: flex;
+        min-width: 0;
+        align-items: center;
+        gap: 0.75rem;
+      }
+
+      .sigil {
+        display: grid;
+        width: 2.35rem;
+        height: 2.35rem;
+        flex: 0 0 auto;
+        place-items: center;
+        border: 2px solid var(--line);
+        border-radius: 4px;
+        background: var(--amber);
+        color: var(--ink);
+        font-weight: 950;
+        box-shadow: 4px 4px 0 var(--copper);
+      }
+
+      .kicker {
+        margin: 0;
+        color: var(--copper);
+        font-size: 0.72rem;
+        font-weight: 950;
+        letter-spacing: 0;
+      }
+
+      .topbar h1,
+      .bottombar p {
+        margin: 0;
+      }
+
+      .topbar h1 {
+        overflow: hidden;
+        color: var(--amber);
+        font-size: clamp(0.95rem, 2vw, 1.35rem);
+        font-weight: 950;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .control-row {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+      }
+
+      .icon-button,
+      .command-button {
+        display: inline-flex;
+        min-height: 2.35rem;
+        align-items: center;
+        justify-content: center;
+        gap: 0.45rem;
+        border: 2px solid var(--line);
+        border-radius: 5px;
+        background: var(--ink);
+        color: var(--cream);
+        cursor: pointer;
+        font-size: 0.78rem;
+        font-weight: 950;
+        text-transform: uppercase;
+        transition:
+          transform 160ms ease,
+          background 160ms ease,
+          color 160ms ease,
+          box-shadow 160ms ease;
+      }
+
+      .icon-button {
+        width: 2.45rem;
+      }
+
+      .command-button {
+        padding: 0 0.9rem;
+      }
+
+      .icon-button:hover,
+      .command-button:hover {
+        background: var(--amber);
+        color: var(--ink);
+        box-shadow: 4px 4px 0 var(--copper);
+        transform: translate(-1px, -1px);
+      }
+
+      .slide-stage {
+        position: relative;
+        min-height: 0;
+      }
+
+      .slide {
+        position: absolute;
+        inset: 0;
+        display: none;
+        overflow: hidden;
+        padding: clamp(1rem, 3.4vw, 3rem);
+      }
+
+      .slide.is-active {
+        display: grid;
+        animation: snap-in 260ms steps(3, end);
+      }
+
+      .slide::after {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        content: "";
+        background:
+          linear-gradient(120deg, transparent 0 48%, rgba(217, 255, 0, 0.08) 48% 50%, transparent 50% 100%),
+          radial-gradient(circle at 82% 78%, rgba(255, 79, 216, 0.12), transparent 18rem);
+      }
+
+      .two-col {
+        grid-template-columns: minmax(0, 1fr) minmax(18rem, 0.78fr);
+        gap: clamp(1rem, 3vw, 2.2rem);
+        align-items: center;
+      }
+
+      .stack {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+        gap: 1rem;
+      }
+
+      .slide-title {
+        margin: 0;
+        max-width: 11ch;
+        color: var(--amber);
+        font-size: clamp(3.6rem, 8.8vw, 8rem);
+        font-weight: 950;
+        line-height: 0.85;
+        text-transform: uppercase;
+      }
+
+      .slide-title.wide {
+        max-width: 15ch;
+      }
+
+      .lede {
+        max-width: 58rem;
+        margin: 0;
+        color: var(--cream);
+        font-size: clamp(1.05rem, 2.25vw, 2rem);
+        font-weight: 900;
+        line-height: 1.18;
+        text-transform: uppercase;
+      }
+
+      .copy {
+        max-width: 48rem;
+        margin: 0;
+        color: var(--muted);
+        font-size: clamp(0.85rem, 1.25vw, 1.05rem);
+        font-weight: 700;
+        line-height: 1.55;
+      }
+
+      .ticker {
+        display: flex;
+        gap: 1rem;
+        overflow: hidden;
+        border: 2px solid var(--line);
+        background: var(--ink);
+        color: var(--amber);
+        padding: 0.65rem;
+        font-size: 0.75rem;
+        font-weight: 950;
+        text-transform: uppercase;
+      }
+
+      .ticker-track {
+        display: flex;
+        min-width: max-content;
+        gap: 1.5rem;
+        animation: ticker 18s linear infinite;
+      }
+
+      .panel {
+        position: relative;
+        z-index: 2;
+        border: 2px solid var(--line);
+        border-radius: 6px;
+        background: rgba(5, 5, 5, 0.82);
+        padding: clamp(0.9rem, 2vw, 1.35rem);
+      }
+
+      .panel.hot {
+        border-color: var(--copper);
+        box-shadow: 8px 8px 0 rgba(217, 255, 0, 0.72);
+      }
+
+      .grid-2,
+      .grid-3,
+      .grid-4 {
+        position: relative;
+        z-index: 2;
+        display: grid;
+        gap: 0.85rem;
+      }
+
+      .grid-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .grid-3 {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .grid-4 {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .feature-card,
+      .team-card,
+      .tech-card,
+      .scope-card {
+        min-width: 0;
+        border: 2px solid var(--line);
+        border-radius: 5px;
+        background: rgba(5, 5, 5, 0.78);
+        padding: 1rem;
+      }
+
+      .feature-card strong,
+      .team-card strong,
+      .tech-card strong,
+      .scope-card strong {
+        display: block;
+        color: var(--amber);
+        font-size: clamp(0.95rem, 1.7vw, 1.35rem);
+        line-height: 1.05;
+        text-transform: uppercase;
+      }
+
+      .feature-card span,
+      .team-card span,
+      .tech-card span,
+      .scope-card span {
+        display: block;
+        margin-top: 0.65rem;
+        color: var(--muted);
+        font-size: 0.78rem;
+        font-weight: 800;
+        line-height: 1.45;
+      }
+
+      .metric-strip {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 1px;
+        border: 2px solid var(--line);
+        background: var(--line);
+      }
+
+      .metric {
+        min-width: 0;
+        background: var(--ink);
+        padding: clamp(0.8rem, 2vw, 1.15rem);
+      }
+
+      .metric strong {
+        display: block;
+        color: var(--amber);
+        font-size: clamp(1.4rem, 3.4vw, 3rem);
+        font-weight: 950;
+        line-height: 1;
+      }
+
+      .metric span {
+        display: block;
+        margin-top: 0.4rem;
+        color: var(--muted);
+        font-size: 0.72rem;
+        font-weight: 950;
+        text-transform: uppercase;
+      }
+
+      .phone-frame,
+      .video-interface {
+        position: relative;
+        z-index: 2;
+        border: 2px solid var(--line);
+        border-radius: 10px;
+        background: var(--ink);
+        box-shadow:
+          0 0 0 4px rgba(123, 44, 255, 0.72),
+          10px 10px 0 rgba(255, 79, 216, 0.78);
+        overflow: hidden;
+      }
+
+      .phone-frame {
+        width: min(100%, 25rem);
+        min-height: 34rem;
+        margin-inline: auto;
+        padding: 0.85rem;
+      }
+
+      .status-pill {
+        display: inline-flex;
+        width: fit-content;
+        align-items: center;
+        gap: 0.45rem;
+        border: 2px solid var(--line);
+        border-radius: 999px;
+        background: var(--amber);
+        color: var(--ink);
+        padding: 0.4rem 0.7rem;
+        font-size: 0.68rem;
+        font-weight: 950;
+        text-transform: uppercase;
+      }
+
+      .chat-bubble {
+        max-width: 85%;
+        margin-top: 0.75rem;
+        border: 2px solid var(--line);
+        border-radius: 5px;
+        padding: 0.7rem;
+        color: var(--cream);
+        font-size: 0.72rem;
+        font-weight: 800;
+        line-height: 1.35;
+      }
+
+      .chat-bubble.me {
+        margin-left: auto;
+        border-color: var(--copper);
+        background: var(--copper);
+        color: var(--ink);
+      }
+
+      .chat-bubble.peer {
+        background: rgba(16, 0, 20, 0.95);
+      }
+
+      .chat-input {
+        position: absolute;
+        right: 0.85rem;
+        bottom: 0.85rem;
+        left: 0.85rem;
+        display: flex;
+        gap: 0.5rem;
+      }
+
+      .fake-input {
+        flex: 1;
+        border: 2px solid var(--line);
+        border-radius: 5px;
+        color: var(--muted);
+        padding: 0.7rem;
+        font-size: 0.7rem;
+      }
+
+      .video-interface {
+        display: grid;
+        min-height: 31rem;
+        grid-template-columns: minmax(0, 1fr) minmax(14rem, 0.5fr);
+        gap: 0.7rem;
+        padding: 0.75rem;
+      }
+
+      .remote-screen,
+      .sidebar-box,
+      .mini-game {
+        border: 2px solid var(--line);
+        border-radius: 6px;
+        background:
+          linear-gradient(transparent 50%, rgba(217, 255, 0, 0.05) 50%),
+          radial-gradient(circle at 50% 35%, rgba(18, 255, 208, 0.14), transparent 14rem),
+          #020202;
+        background-size: 100% 4px, auto, auto;
+      }
+
+      .remote-screen {
+        position: relative;
+        display: grid;
+        min-height: 28rem;
+        place-items: center;
+        overflow: hidden;
+      }
+
+      .face-card {
+        display: grid;
+        width: clamp(7rem, 18vw, 13rem);
+        aspect-ratio: 1;
+        place-items: center;
+        border: 2px dashed var(--copper);
+        border-radius: 50%;
+        color: var(--amber);
+        font-size: clamp(2rem, 6vw, 5rem);
+        font-weight: 950;
+        animation: pulse 1.8s steps(4, end) infinite;
+      }
+
+      .sidebar {
+        display: grid;
+        gap: 0.7rem;
+      }
+
+      .sidebar-box {
+        padding: 0.85rem;
+      }
+
+      .sidebar-box strong {
+        display: block;
+        color: var(--amber);
+        font-size: 0.78rem;
+        text-transform: uppercase;
+      }
+
+      .sidebar-box span {
+        display: block;
+        margin-top: 0.45rem;
+        color: var(--muted);
+        font-size: 0.68rem;
+        line-height: 1.35;
+      }
+
+      .mini-game {
+        padding: 0.75rem;
+      }
+
+      .game-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.35rem;
+        margin-top: 0.65rem;
+      }
+
+      .game-grid span {
+        display: grid;
+        aspect-ratio: 1;
+        place-items: center;
+        border: 2px solid var(--line);
+        color: var(--amber);
+        font-weight: 950;
+      }
+
+      .flow {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 0.75rem;
+        align-items: stretch;
+      }
+
+      .flow-step {
+        position: relative;
+        border: 2px solid var(--line);
+        border-radius: 6px;
+        background: rgba(5, 5, 5, 0.8);
+        padding: 1rem;
+      }
+
+      .flow-step::after {
+        position: absolute;
+        top: 50%;
+        right: -0.72rem;
+        width: 0.7rem;
+        height: 2px;
+        content: "";
+        background: var(--copper);
+      }
+
+      .flow-step:last-child::after {
+        content: none;
+      }
+
+      .flow-step strong {
+        display: block;
+        color: var(--amber);
+        font-size: 0.9rem;
+        text-transform: uppercase;
+      }
+
+      .flow-step span {
+        display: block;
+        margin-top: 0.55rem;
+        color: var(--muted);
+        font-size: 0.72rem;
+        line-height: 1.35;
+      }
+
+      .stack-list {
+        display: grid;
+        gap: 0.7rem;
+      }
+
+      .stack-row {
+        display: grid;
+        grid-template-columns: minmax(8rem, 0.4fr) minmax(0, 1fr);
+        gap: 0.75rem;
+        align-items: center;
+        border: 2px solid var(--line);
+        background: rgba(5, 5, 5, 0.76);
+        padding: 0.75rem;
+      }
+
+      .stack-row strong {
+        color: var(--amber);
+        font-size: 0.82rem;
+        text-transform: uppercase;
+      }
+
+      .stack-row span {
+        color: var(--muted);
+        font-size: 0.76rem;
+        line-height: 1.35;
+      }
+
+      .contribution-bar {
+        display: grid;
+        height: 2rem;
+        grid-template-columns: 38fr 32fr 30fr;
+        overflow: hidden;
+        border: 2px solid var(--line);
+        border-radius: 999px;
+        background: var(--ink);
+      }
+
+      .contribution-bar span:nth-child(1) {
+        background: var(--amber);
+      }
+
+      .contribution-bar span:nth-child(2) {
+        background: var(--copper);
+      }
+
+      .contribution-bar span:nth-child(3) {
+        background: var(--cyan);
+      }
+
+      .note {
+        color: var(--muted);
+        font-size: 0.7rem;
+        line-height: 1.4;
+      }
+
+      .progress-wrap {
+        display: flex;
+        min-width: 10rem;
+        align-items: center;
+        gap: 0.7rem;
+      }
+
+      .progress {
+        width: min(24vw, 18rem);
+        height: 0.55rem;
+        overflow: hidden;
+        border: 2px solid var(--line);
+        border-radius: 999px;
+        background: var(--ink);
+      }
+
+      .progress-fill {
+        width: 0;
+        height: 100%;
+        background: linear-gradient(90deg, var(--amber), var(--copper), var(--cyan));
+      }
+
+      .slide-count {
+        color: var(--amber);
+        font-size: 0.72rem;
+        font-weight: 950;
+      }
+
+      .speaker-notes {
+        position: fixed;
+        right: 1rem;
+        bottom: 4.75rem;
+        z-index: 10;
+        display: none;
+        width: min(28rem, calc(100vw - 2rem));
+        border: 2px solid var(--copper);
+        border-radius: 6px;
+        background: rgba(5, 5, 5, 0.94);
+        color: var(--cream);
+        padding: 1rem;
+        box-shadow: 8px 8px 0 rgba(217, 255, 0, 0.6);
+      }
+
+      .speaker-notes.is-open {
+        display: block;
+      }
+
+      .speaker-notes strong {
+        display: block;
+        color: var(--amber);
+        text-transform: uppercase;
+      }
+
+      .speaker-notes p {
+        margin: 0.65rem 0 0;
+        color: var(--muted);
+        font-size: 0.78rem;
+        line-height: 1.45;
+      }
+
+      .print-hint {
+        color: var(--muted);
+        font-size: 0.68rem;
+        font-weight: 800;
+        text-transform: uppercase;
+      }
+
+      @keyframes grid-drift {
+        to {
+          background-position: 90px 45px, -42px 120px;
+        }
+      }
+
+      @keyframes ticker {
+        to {
+          transform: translateX(-50%);
+        }
+      }
+
+      @keyframes snap-in {
+        from {
+          filter: hue-rotate(35deg) saturate(1.8);
+          transform: translateX(1.25rem);
+        }
+        to {
+          filter: none;
+          transform: none;
+        }
+      }
+
+      @keyframes pulse {
+        50% {
+          transform: scale(1.08);
+        }
+      }
+
+      @media (max-width: 920px) {
+        html,
+        body {
+          overflow: auto;
+        }
+
+        .deck-shell {
+          min-height: auto;
+        }
+
+        .slide-stage {
+          min-height: 68rem;
+        }
+
+        .slide {
+          overflow-y: auto;
+        }
+
+        .two-col,
+        .grid-2,
+        .grid-3,
+        .grid-4,
+        .flow,
+        .video-interface,
+        .metric-strip {
+          grid-template-columns: 1fr;
+        }
+
+        .flow-step::after {
+          display: none;
+        }
+
+        .topbar,
+        .bottombar {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .progress {
+          width: calc(100vw - 8rem);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.001ms !important;
+          animation-iteration-count: 1 !important;
+          scroll-behavior: auto !important;
+          transition-duration: 0.001ms !important;
+        }
+      }
+
+      @media print {
+        html,
+        body {
+          overflow: visible;
+          background: #050505;
+        }
+
+        .topbar,
+        .bottombar,
+        .speaker-notes {
+          display: none !important;
+        }
+
+        .deck-shell {
+          display: block;
+          padding: 0;
+        }
+
+        .slide-stage {
+          display: block;
+        }
+
+        .slide {
+          position: relative;
+          display: grid !important;
+          min-height: 100vh;
+          page-break-after: always;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="deck-shell">
+      <header class="topbar" aria-label="Presentation controls">
+        <div class="brand-lockup">
+          <div class="sigil" aria-hidden="true">P</div>
+          <div>
+            <p class="kicker">peerly://platform-presentation</p>
+            <h1>Anonymous Student Chat, But With Better Chaos</h1>
+          </div>
+        </div>
+        <div class="control-row">
+          <button class="icon-button" type="button" data-prev aria-label="Previous slide">‹</button>
+          <button class="icon-button" type="button" data-next aria-label="Next slide">›</button>
+          <button class="command-button" type="button" data-notes>Notes</button>
+        </div>
+      </header>
+
+      <section class="slide-stage" aria-live="polite">
+        <article class="slide is-active two-col" data-title="Opening" data-notes="Open with the user problem: students want low-friction conversation, but most social platforms demand profiles, bios, and performance. PeerLy removes that ceremony.">
+          <div class="stack">
+            <p class="kicker">student random chat • realtime • no profile cosplay</p>
+            <h2 class="slide-title">PeerLy</h2>
+            <p class="lede">Anonymous student chat that skips profiles, bios, and the algorithm babysitter.</p>
+            <div class="ticker" aria-hidden="true">
+              <div class="ticker-track">
+                <span>zero bios</span><span>instant skip</span><span>room games</span><span>video request consent</span><span>peer-to-peer media</span>
+                <span>zero bios</span><span>instant skip</span><span>room games</span><span>video request consent</span><span>peer-to-peer media</span>
+              </div>
+            </div>
+          </div>
+          <div class="phone-frame" aria-label="PeerLy chat mockup">
+            <span class="status-pill">matched • try not to be boring</span>
+            <div class="chat-bubble peer">You study here too or did the Wi-Fi summon you?</div>
+            <div class="chat-bubble me">Both. My attendance is basically a rumor.</div>
+            <div class="chat-bubble peer">Video?</div>
+            <div class="chat-bubble me">Request it. Consent gate is watching.</div>
+            <div class="chat-input">
+              <div class="fake-input">say something dangerously charming</div>
+              <button class="icon-button" type="button" aria-label="Send mock message">↗</button>
+            </div>
+          </div>
+        </article>
+
+        <article class="slide" data-title="Project Overview" data-notes="Explain PeerLy as a realtime matching system: a student enters, joins a queue, gets matched, chats, plays, optionally upgrades to video, and can skip anytime.">
+          <div class="stack">
+            <p class="kicker">01 • project overview</p>
+            <h2 class="slide-title wide">What We Built</h2>
+            <p class="lede">A fast anonymous room system for students who want conversation without building a personal brand first.</p>
+            <div class="flow">
+              <div class="flow-step"><strong>Enter</strong><span>Pick text or video. No profile ceremony.</span></div>
+              <div class="flow-step"><strong>Queue</strong><span>Backend places the user into a mode-specific waiting room.</span></div>
+              <div class="flow-step"><strong>Match</strong><span>Two students get paired into a private room.</span></div>
+              <div class="flow-step"><strong>Play</strong><span>Chat, room games, side chat, savage UI energy.</span></div>
+              <div class="flow-step"><strong>Skip</strong><span>Instantly leave and find a new plotline.</span></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="slide two-col" data-title="Why It Matters" data-notes="Mention early university usage as current traction from the team. Keep it qualitative unless hard metrics are available.">
+          <div class="stack">
+            <p class="kicker">02 • early traction</p>
+            <h2 class="slide-title wide">Students Are Already Trying It</h2>
+            <p class="lede">Students in the university have started using PeerLy, which means the idea escaped the localhost basement.</p>
+            <p class="copy">The first goal was not to become another heavy social network. The goal was a low-pressure campus interaction layer: enter, match, talk, leave, repeat. Early student use gives us real behavior to observe: awkward openers, fast skips, curiosity around video, and strong demand for lighter social spaces.</p>
+          </div>
+          <div class="metric-strip">
+            <div class="metric"><strong>0</strong><span>profiles required</span></div>
+            <div class="metric"><strong>2</strong><span>room modes</span></div>
+            <div class="metric"><strong>4</strong><span>mini games</span></div>
+            <div class="metric"><strong>∞</strong><span>campus lore potential</span></div>
+          </div>
+        </article>
+
+        <article class="slide" data-title="Core Features" data-notes="Walk through the feature set as product capabilities rather than implementation details.">
+          <div class="stack">
+            <p class="kicker">03 • feature stack</p>
+            <h2 class="slide-title wide">Core Features</h2>
+            <div class="grid-3">
+              <div class="feature-card"><strong>Random Matching</strong><span>Mode-specific queues pair students into one-on-one rooms without profiles.</span></div>
+              <div class="feature-card"><strong>Realtime Chat</strong><span>WebSocket messages relay instantly while the chat history stays alive in the session.</span></div>
+              <div class="feature-card"><strong>Consent Video</strong><span>Text rooms can request video. Nobody gets camera-jumped without accepting.</span></div>
+              <div class="feature-card"><strong>Room Games</strong><span>Tic Tac Toe, Connect Four, Dice Race, and Loot Tiles keep silent rooms from becoming haunted.</span></div>
+              <div class="feature-card"><strong>Skip Flow</strong><span>One tap exits the room, cleans partner state, and requeues users properly.</span></div>
+              <div class="feature-card"><strong>Savage Interface</strong><span>Retro terminal panels, CRT filters, and microcopy with a little attitude.</span></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="slide two-col" data-title="Video Interface" data-notes="Use this slide to demo the actual product feeling: video area, side chat, filter controls, and the chaos arcade.">
+          <div class="stack">
+            <p class="kicker">04 • interface showcase</p>
+            <h2 class="slide-title wide">Video Mode, But Make It Campus</h2>
+            <p class="lede">The video room is not a boring call screen. It is a small neon command center for awkward eye contact.</p>
+            <p class="copy">The interface includes a main remote video surface, local preview, filter controls, side chat, and a collapsible chaos arcade. The layout gives video room to breathe while keeping games close enough to rescue dead air.</p>
+          </div>
+          <div class="video-interface">
+            <div class="remote-screen">
+              <span class="status-pill" style="position:absolute;left:1rem;top:1rem;">stranger danger, campus edition</span>
+              <div class="face-card">?</div>
+              <span class="status-pill" style="position:absolute;left:1rem;bottom:1rem;">waiting for brave eye contact</span>
+            </div>
+            <div class="sidebar">
+              <div class="sidebar-box"><strong>You, unfortunately</strong><span>Local preview, filters, and camera permission reality check.</span></div>
+              <div class="sidebar-box"><strong>Side chat</strong><span>No words yet. The silence has tenure.</span></div>
+              <div class="mini-game"><strong>Chaos arcade</strong><div class="game-grid"><span>X</span><span>O</span><span>X</span><span>O</span><span>X</span><span></span><span></span><span>O</span><span></span></div></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="slide" data-title="System Design" data-notes="Explain the architecture simply. The backend coordinates, but media travels peer-to-peer after signaling.">
+          <div class="stack">
+            <p class="kicker">05 • architecture</p>
+            <h2 class="slide-title wide">How It Works</h2>
+            <div class="flow">
+              <div class="flow-step"><strong>React UI</strong><span>Routes for home, chat, and video; session state in Zustand.</span></div>
+              <div class="flow-step"><strong>WebSocket</strong><span>Join, match, message, game, skip, request video.</span></div>
+              <div class="flow-step"><strong>FastAPI</strong><span>Async matching queues, partner maps, room cleanup.</span></div>
+              <div class="flow-step"><strong>WebRTC</strong><span>Offer, answer, ICE signaling through backend.</span></div>
+              <div class="flow-step"><strong>P2P Media</strong><span>Camera and mic stream browser-to-browser, not through the server.</span></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="slide two-col" data-title="Tech Stack" data-notes="Keep this technical but readable. Mention why each technology fits the product.">
+          <div class="stack">
+            <p class="kicker">06 • tech stack</p>
+            <h2 class="slide-title">Stack</h2>
+            <p class="lede">Small enough to move fast, real enough to survive actual users.</p>
+          </div>
+          <div class="stack-list">
+            <div class="stack-row"><strong>React + Vite</strong><span>Fast frontend iteration, component-based UI, production static build.</span></div>
+            <div class="stack-row"><strong>Zustand</strong><span>Shared session state for chat history, mode changes, games, and WebRTC signaling.</span></div>
+            <div class="stack-row"><strong>FastAPI</strong><span>Async Python backend for WebSocket control, matching, skip flow, and room state.</span></div>
+            <div class="stack-row"><strong>WebRTC</strong><span>Direct peer-to-peer video and audio after signaling completes.</span></div>
+            <div class="stack-row"><strong>Render</strong><span>Hosted static frontend plus backend web service for production deployment.</span></div>
+          </div>
+        </article>
+
+        <article class="slide" data-title="Team" data-notes="Introduce the team as a three-person project. Keep roles flexible unless exact ownership is finalized.">
+          <div class="stack">
+            <p class="kicker">07 • team intro</p>
+            <h2 class="slide-title wide">Three People, One Slightly Unhinged Platform</h2>
+            <div class="grid-3">
+              <div class="team-card"><strong>Kushal Garg</strong><span>Realtime architecture, product polish, deployment flow, and making the UI talk back.</span></div>
+              <div class="team-card"><strong>Tishika Arora</strong><span>Product thinking, interaction review, user flow feedback, and presentation support.</span></div>
+              <div class="team-card"><strong>Roshni Singh</strong><span>Testing support, feature feedback, campus-user perspective, and documentation support.</span></div>
+            </div>
+            <p class="note">Contribution split shown for presentation purposes and can be adjusted to match final team ownership.</p>
+          </div>
+        </article>
+
+        <article class="slide two-col" data-title="Team Contribution" data-notes="This is explicitly a mock contribution split. Use it as a visual for team discussion, not as Git history.">
+          <div class="stack">
+            <p class="kicker">08 • mock contribution map</p>
+            <h2 class="slide-title wide">Who Did What</h2>
+            <p class="lede">A presentation-friendly contribution split, not a fake commit graph.</p>
+            <div class="contribution-bar" aria-label="Mock contribution split"><span></span><span></span><span></span></div>
+            <p class="note">Kushal 38% • Tishika 32% • Roshni 30%. Replace these with final verified numbers if needed.</p>
+          </div>
+          <div class="grid-2">
+            <div class="feature-card"><strong>Engineering</strong><span>Matching, WebSockets, WebRTC, games, deploys, and production fixes.</span></div>
+            <div class="feature-card"><strong>Experience</strong><span>Flow decisions, student framing, interface copy, testing, and presentation narrative.</span></div>
+            <div class="feature-card"><strong>Validation</strong><span>University usage, edge-case feedback, camera permissions, and room behavior review.</span></div>
+            <div class="feature-card"><strong>Delivery</strong><span>Docs, demo flow, hosting, GitHub Pages deck, and final showcase prep.</span></div>
+          </div>
+        </article>
+
+        <article class="slide" data-title="Future Scope" data-notes="Frame future scope around safety, identity, scale, and campus-specific growth.">
+          <div class="stack">
+            <p class="kicker">09 • future scope</p>
+            <h2 class="slide-title wide">What Comes Next</h2>
+            <div class="grid-4">
+              <div class="scope-card"><strong>Campus Verification</strong><span>Email or invite-based access so rooms stay student-first.</span></div>
+              <div class="scope-card"><strong>Moderation Layer</strong><span>Persistent reports, review queues, rate limits, and ban controls.</span></div>
+              <div class="scope-card"><strong>Interest Matching</strong><span>Optional tags for clubs, branches, events, and study chaos.</span></div>
+              <div class="scope-card"><strong>Better Analytics</strong><span>Understand skips, matches, room duration, games, and drop-off.</span></div>
+              <div class="scope-card"><strong>Group Rooms</strong><span>Small group rooms for event discovery and campus communities.</span></div>
+              <div class="scope-card"><strong>Mobile Polish</strong><span>Installable PWA, better gestures, and smoother low-bandwidth video.</span></div>
+              <div class="scope-card"><strong>Safety Prompts</strong><span>Clear warnings, consent checks, and panic-skip controls.</span></div>
+              <div class="scope-card"><strong>Campus Launch Kit</strong><span>Posters, QR codes, ambassador flow, and live event demos.</span></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="slide two-col" data-title="Closing" data-notes="Close with the simple message: PeerLy makes spontaneous student connection easy, safe, and weird enough to remember.">
+          <div class="stack">
+            <p class="kicker">10 • closing pitch</p>
+            <h2 class="slide-title wide">PeerLy Makes Campus Less Quiet</h2>
+            <p class="lede">A realtime student interaction layer where conversations can start fast, get weird, move to video with consent, and end without drama.</p>
+            <p class="copy">The platform is already live, students have started trying it, and the product has a clear path from MVP to a safer campus network. No profiles. No algorithm babysitter. Just rooms, people, and the occasional emotional damage from Tic Tac Toe.</p>
+          </div>
+          <div class="panel hot">
+            <p class="kicker">demo script</p>
+            <p class="lede">Open two devices. Match in text. Send a savage opener. Request video. Accept. Show chat surviving. Open chaos arcade. Skip. Applause, hopefully.</p>
+          </div>
+        </article>
+      </section>
+
+      <footer class="bottombar">
+        <div class="progress-wrap" aria-label="Slide progress">
+          <span class="slide-count" data-count>01 / 10</span>
+          <div class="progress"><div class="progress-fill" data-progress></div></div>
+        </div>
+        <p class="print-hint">Use ← → keys • Press N for notes • Print to export PDF</p>
+      </footer>
+    </main>
+
+    <aside class="speaker-notes" data-notes-panel aria-live="polite">
+      <strong>Speaker Notes</strong>
+      <p data-notes-text></p>
+    </aside>
+
+    <script>
+      const slides = Array.from(document.querySelectorAll(".slide"));
+      const count = document.querySelector("[data-count]");
+      const progress = document.querySelector("[data-progress]");
+      const notesButton = document.querySelector("[data-notes]");
+      const notesPanel = document.querySelector("[data-notes-panel]");
+      const notesText = document.querySelector("[data-notes-text]");
+      let currentSlide = 0;
+
+      function updateDeck() {
+        slides.forEach((slide, index) => {
+          slide.classList.toggle("is-active", index === currentSlide);
+        });
+        count.textContent = `${String(currentSlide + 1).padStart(2, "0")} / ${String(slides.length).padStart(2, "0")}`;
+        progress.style.width = `${((currentSlide + 1) / slides.length) * 100}%`;
+        notesText.textContent = slides[currentSlide].dataset.notes || "No notes for this slide. Improvise with confidence.";
+      }
+
+      function moveSlide(offset) {
+        currentSlide = (currentSlide + offset + slides.length) % slides.length;
+        updateDeck();
+      }
+
+      document.querySelector("[data-prev]").addEventListener("click", () => moveSlide(-1));
+      document.querySelector("[data-next]").addEventListener("click", () => moveSlide(1));
+      notesButton.addEventListener("click", () => notesPanel.classList.toggle("is-open"));
+
+      window.addEventListener("keydown", (event) => {
+        if (event.key === "ArrowRight" || event.key === " ") {
+          event.preventDefault();
+          moveSlide(1);
+        }
+        if (event.key === "ArrowLeft") {
+          event.preventDefault();
+          moveSlide(-1);
+        }
+        if (event.key.toLowerCase() === "n") {
+          notesPanel.classList.toggle("is-open");
+        }
+      });
+
+      updateDeck();
+    </script>
+  </body>
+</html>
