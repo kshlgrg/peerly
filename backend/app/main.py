@@ -48,7 +48,9 @@ class ConnectionManager:
         self.clients: dict[str, Client] = {}
         self.waiting: dict[str, deque[str]] = {"text": deque(), "video": deque()}
         self.partners: dict[str, str] = {}
+        # Avoid immediately pairing the same two users after one of them skips.
         self.skip_blocks: dict[str, set[str]] = {}
+        # Temporary moderation queue until reports move to persistent storage.
         self.reports: deque[dict[str, Any]] = deque(maxlen=250)
         self.games: dict[str, dict[str, Any]] = {}
         self.video_requests: dict[str, str] = {}
