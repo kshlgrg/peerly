@@ -12,6 +12,8 @@ PeerLy is maintained as a collaborative project.
 - Roshni Singh ([@RoshniSingh0116](https://github.com/RoshniSingh0116))
 - Tishika ([@tishika25552-sys](https://github.com/tishika25552-sys))
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the basic checklist before opening changes.
+
 ## What It Does
 
 - Matches students randomly into one-on-one text or video rooms.
