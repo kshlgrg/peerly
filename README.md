@@ -89,6 +89,12 @@ If the free Render backend is sleeping, the first connection can take a short mo
 
 ## Local Development
 
+Prerequisites:
+
+- Node.js 18 or newer for the Vite frontend.
+- Python 3.11 or newer for the FastAPI backend.
+- Two browser profiles or devices when testing live matching locally.
+
 Quick checks before opening a pull request:
 
 ```bash
