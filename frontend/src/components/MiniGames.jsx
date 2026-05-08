@@ -1,5 +1,6 @@
 import { Dice5, Gamepad2 } from "lucide-react";
 
+// Each game entry contains the backend id, display label, and tiny UI description.
 const games = [
   ["tic_tac_toe", "Tic Tac Toe", "Tiny board, loud ego funeral."],
   ["connect_four", "Connect Four", "Gravity doing emotional damage."],
@@ -8,18 +9,22 @@ const games = [
 ];
 
 export default function MiniGames({ compact = false, disabled = false, gameState, gameError, onGame }) {
+  // The backend sends whose turn it is; the UI only enables moves for that player.
   const isYourTurn = gameState?.status === "playing" && gameState?.turn === gameState?.you;
 
+  // Start asks the server to create/reset the selected game for both peers.
   function start(game) {
     onGame?.({ action: "start", game });
   }
 
+  // Move sends only the move payload; the server validates rules and broadcasts state.
   function move(moveData = {}) {
     onGame?.({ action: "move", move: moveData });
   }
 
   return (
     <section className={`terminal-panel bg-[#100014] p-3 font-mono uppercase ${compact ? "space-y-3" : "space-y-4"}`}>
+      {/* Arcade heading makes it clear that game state is server-refereed. */}
       <div className="flex items-center justify-between gap-3">
         <p className="flex items-center gap-2 text-xs font-black text-amber">
           <Gamepad2 size={15} aria-hidden="true" />
@@ -28,6 +33,7 @@ export default function MiniGames({ compact = false, disabled = false, gameState
         <span className="text-xs font-black text-copper">server referees the nonsense</span>
       </div>
 
+      {/* Game launcher list. Disabled while waiting so users cannot create orphan games. */}
       <div className={`grid gap-2 ${compact ? "grid-cols-2" : "sm:grid-cols-4"}`}>
         {games.map(([id, label, copy]) => (
           <button
@@ -43,15 +49,19 @@ export default function MiniGames({ compact = false, disabled = false, gameState
         ))}
       </div>
 
+      {/* Server-side validation errors, such as moving out of turn, appear here. */}
       {gameError && <p className="border-2 border-copper bg-ink p-2 text-xs font-black text-copper">{gameError}</p>}
 
       {!gameState ? (
+        // Empty state before a game has been selected.
         <p className="border-2 border-line bg-ink p-3 text-xs font-bold leading-5 text-cream/55">
           Match first, then start a game. Skipping wipes the room state, because loopholes are for people with weak lore.
         </p>
       ) : (
         <div className="border-2 border-line bg-ink p-3">
+          {/* Header shows current game, player mark, and turn/winner status. */}
           <GameHeader gameState={gameState} isYourTurn={isYourTurn} />
+          {/* Render the correct board component based on the server's game type. */}
           {gameState.type === "tic_tac_toe" && <TicTacToe state={gameState} move={move} isYourTurn={isYourTurn} />}
           {gameState.type === "connect_four" && <ConnectFour state={gameState} move={move} isYourTurn={isYourTurn} />}
           {gameState.type === "dice_race" && <DiceRace state={gameState} move={move} isYourTurn={isYourTurn} />}
@@ -63,6 +73,7 @@ export default function MiniGames({ compact = false, disabled = false, gameState
 }
 
 function GameHeader({ gameState, isYourTurn }) {
+  // Winner text compresses several backend states into one badge.
   const winnerText =
     gameState.winner === "draw"
       ? "draw"
@@ -90,6 +101,7 @@ function GameHeader({ gameState, isYourTurn }) {
 function TicTacToe({ state, move, isYourTurn }) {
   return (
     <div className="grid grid-cols-3 gap-2">
+      {/* The board is a flat nine-cell array; index is sent back as the move. */}
       {state.board.map((cell, index) => (
         <button
           key={index}
@@ -109,6 +121,7 @@ function ConnectFour({ state, move, isYourTurn }) {
   return (
     <div className="space-y-2">
       <div className="grid grid-cols-7 gap-1">
+        {/* Column buttons drop a piece into the selected column. */}
         {Array.from({ length: 7 }, (_, column) => (
           <button
             key={column}
@@ -122,6 +135,7 @@ function ConnectFour({ state, move, isYourTurn }) {
         ))}
       </div>
       <div className="grid grid-cols-7 gap-1">
+        {/* The backend owns gravity and winner checks; this only paints the latest grid. */}
         {state.board.flatMap((row, rowIndex) =>
           row.map((cell, columnIndex) => (
             <span
@@ -138,6 +152,7 @@ function ConnectFour({ state, move, isYourTurn }) {
 }
 
 function DiceRace({ state, move, isYourTurn }) {
+  // Position defaults keep the UI stable while a new state arrives.
   const a = state.positions?.A ?? 0;
   const b = state.positions?.B ?? 0;
   const target = state.target ?? 24;
@@ -151,6 +166,7 @@ function DiceRace({ state, move, isYourTurn }) {
           Last roll: {state.lastRoll.player} rolled {state.lastRoll.value}. Math has chosen violence.
         </p>
       )}
+      {/* Rolling sends an empty move because the server generates the random number. */}
       <button className="command-button min-h-10 w-full text-xs" type="button" disabled={!isYourTurn} onClick={() => move()}>
         <Dice5 size={14} aria-hidden="true" />
         roll the blame cube
@@ -167,6 +183,7 @@ function LootTiles({ state, move, isYourTurn }) {
         <span>B loot: {state.scores?.B ?? 0}</span>
       </div>
       <div className="grid grid-cols-3 gap-2">
+        {/* Players claim hidden tiles; the server reveals point values after each claim. */}
         {state.claimed.map((owner, index) => (
           <button
             key={index}
@@ -196,18 +213,21 @@ function RaceBar({ label, value, target, mine }) {
         </span>
       </div>
       <div className="h-4 border-2 border-line bg-[#120015]">
+        {/* Width turns numeric race progress into a quick visual bar. */}
         <div className={label === "A" ? "h-full bg-amber" : "h-full bg-copper"} style={{ width: `${(value / target) * 100}%` }} />
       </div>
     </div>
   );
 }
 
+// Shared cell styling keeps all game boards visually consistent.
 function cellClass(mark) {
   if (mark === "A") return "border-amber bg-amber text-ink";
   if (mark === "B") return "border-copper bg-copper text-ink";
   return "border-line bg-[#120015] text-amber";
 }
 
+// Converts the backend game id into a display label for headers.
 function labelForGame(type) {
   return games.find(([id]) => id === type)?.[1] ?? "Game";
 }

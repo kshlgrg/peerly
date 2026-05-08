@@ -4,12 +4,15 @@ import { Link } from "react-router-dom";
 
 import { disconnectSocketSession } from "../hooks/useSocket.js";
 
+// These cards summarize the product in the first viewport.
+// They are static so the landing page stays fast and predictable.
 const featureRows = [
   ["Random matching", "Queue up, get paired, skip when the vibe is expired."],
   ["Text + video", "Chat normally or go camera-on with retro filters."],
   ["Mini games inside rooms", "The fun lives where people wait, not all over the front door."],
 ];
 
+// Rotating copy gives the homepage the same "savage" personality as the room UI.
 const genzFacts = [
   ["aura debt", "When you open with 'hey' and expect a personality to spawn."],
   ["NPC audit", "PeerLy's skip button exists because some conversations are legally furniture."],
@@ -18,9 +21,11 @@ const genzFacts = [
 ];
 
 export default function Home() {
+  // factIndex chooses which Gen Z fact card is visible.
   const [factIndex, setFactIndex] = useState(0);
   const fact = genzFacts[factIndex];
 
+  // Coming home means the user is done with the current room, so reset the socket/session.
   useEffect(() => {
     disconnectSocketSession();
   }, []);
@@ -28,6 +33,7 @@ export default function Home() {
   return (
     <main className="peerly-shell flex min-h-[100dvh] items-center justify-center overflow-x-hidden px-3 py-6 sm:px-5 lg:py-8">
       <section className="relative z-10 w-full max-w-6xl">
+        {/* Top ticker sets the retro terminal mood before the main screen. */}
         <div className="ticker mb-5 overflow-hidden">
           <div className="flex min-w-max gap-8 px-3">
             <span>zero profiles</span>
@@ -39,6 +45,7 @@ export default function Home() {
         </div>
 
         <div className="terminal-panel border-[8px] border-ink bg-violet p-2 sm:border-[12px] sm:p-3">
+          {/* Main screen panel contains the actual app entry actions, not a marketing-only hero. */}
           <div className="screen-panel rounded-md border-2 border-line bg-ink px-5 py-8 sm:px-8 lg:px-12 lg:py-12">
             <div className="mx-auto max-w-5xl font-mono">
               <p className="mb-4 flex items-center gap-2 text-sm font-black uppercase text-amber">
@@ -61,12 +68,14 @@ export default function Home() {
               </div>
 
               <div className="mt-8 grid gap-4 sm:grid-cols-2">
+                {/* Text mode connects immediately to the chat queue. */}
                 <ModeLink
                   to="/chat"
                   icon={MessageSquareText}
                   title="Start Text Chat"
                   copy="Low pressure. High chance of unhinged campus lore."
                 />
+                {/* Video mode waits for local camera readiness before joining the video queue. */}
                 <ModeLink
                   to="/video"
                   icon={Video}
@@ -76,6 +85,7 @@ export default function Home() {
               </div>
 
               <div className="mt-8 grid gap-3 border-t-2 border-line pt-5 lg:grid-cols-3">
+                {/* Feature cards are short enough to scan during a live demo. */}
                 {featureRows.map(([title, copy]) => (
                   <div key={title} className="border-2 border-line bg-[#090012] p-4">
                     <p className="flex items-center gap-2 text-xs font-black uppercase text-amber">
@@ -97,6 +107,7 @@ export default function Home() {
                   <button
                     className="command-button min-h-10 px-3 text-xs"
                     type="button"
+                    // Cycles through the prewritten facts without random state.
                     onClick={() => setFactIndex((current) => (current + 1) % genzFacts.length)}
                   >
                     <Dice5 size={14} aria-hidden="true" />
@@ -106,6 +117,7 @@ export default function Home() {
               </div>
 
               <div className="mt-4 border-2 border-copper bg-ink p-4">
+                {/* Safety copy is visible before users enter anonymous rooms. */}
                 <p className="text-xs font-black uppercase text-copper">privacy reality check</p>
                 <p className="mt-2 text-sm font-black uppercase leading-6 text-amber">
                   Test build: chat messages and basic platform activity may be reviewed for safety and debugging. Do
@@ -120,12 +132,14 @@ export default function Home() {
   );
 }
 
+// Reusable landing action card so chat/video entry points stay visually consistent.
 function ModeLink({ to, icon: Icon, title, copy }) {
   return (
     <Link
       to={to}
       className="terminal-panel group flex min-h-52 flex-col justify-between bg-panel p-5 transition hover:-translate-y-1 hover:border-copper hover:bg-[#130513]"
     >
+      {/* Icon changes by mode while the card structure stays the same. */}
       <Icon className="text-amber transition group-hover:text-copper" size={34} aria-hidden="true" />
       <div>
         <h2 className="text-2xl font-black uppercase text-cream">{title}</h2>

@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from "react";
 
 import MiniGames from "./MiniGames.jsx";
 
+// Video filters map a friendly label to CSS classes in styles.css.
+// The "alien" filter also toggles audio processing through onAlienVoiceChange.
 export const filters = [
   { id: "clean", label: "Clean", className: "video-filter-clean" },
   { id: "crt", label: "CRT", className: "video-filter-crt" },
@@ -25,21 +27,27 @@ export default function VideoBox({
   onAlienVoiceChange,
   alienVoiceEnabled,
 }) {
+  // CRT is the default because it matches the retro savage visual direction.
   const [activeFilter, setActiveFilter] = useState(filters[1]);
+  // Games open as a dialog so the video surface keeps maximum room.
   const [gamesOpen, setGamesOpen] = useState(false);
+  // Mobile uses a second local preview element because the desktop one is hidden.
   const mobileLocalVideoRef = useRef(null);
 
+  // Selecting a filter updates both the video class and optional voice effect.
   function chooseFilter(filter) {
     setActiveFilter(filter);
     onAlienVoiceChange?.(filter.id === "alien");
   }
 
+  // Mirror the actual local MediaStream into the mobile preview when it appears.
   useEffect(() => {
     if (mobileLocalVideoRef.current && localVideoRef.current?.srcObject) {
       mobileLocalVideoRef.current.srcObject = localVideoRef.current.srcObject;
     }
   }, [localReady, localVideoRef, activeFilter]);
 
+  // Escape closes the arcade dialog, matching common modal behavior.
   useEffect(() => {
     function closeOnEscape(event) {
       if (event.key === "Escape") {
@@ -53,6 +61,7 @@ export default function VideoBox({
 
   return (
     <section className="grid min-h-0 w-full flex-1 gap-3 sm:gap-4 lg:h-full lg:grid-cols-[minmax(0,1fr)_minmax(340px,400px)]">
+      {/* Main remote-video stage. This is where the other peer's stream renders. */}
       <div className="terminal-panel screen-panel relative h-[58dvh] min-h-[430px] overflow-hidden sm:h-[62dvh] lg:h-full lg:min-h-0">
         <video
           ref={remoteVideoRef}
@@ -60,15 +69,18 @@ export default function VideoBox({
           autoPlay
           playsInline
         />
+        {/* Overlay remains until a match exists, so blank remote video is explained. */}
         {status !== "matched" && (
           <div className="absolute inset-0 flex items-center justify-center bg-ink/90 p-6 text-center font-mono text-sm font-black uppercase text-amber">
             Waiting for another brave soul to risk eye contact.
           </div>
         )}
+        {/* Status sticker labels the remote surface during the demo. */}
         <div className="absolute left-4 top-4 flex items-center gap-2 rounded-md border-2 border-line bg-amber px-3 py-2 font-mono text-xs font-black uppercase text-ink">
           <MonitorUp size={15} aria-hidden="true" />
           stranger danger, campus edition
         </div>
+        {/* Filter controls sit on top of the video so the user can change style live. */}
         <div className="terminal-panel absolute bottom-4 left-4 z-10 flex max-w-[calc(100%-9rem)] flex-wrap gap-2 bg-ink/90 p-2 backdrop-blur sm:max-w-[calc(100%-11rem)] lg:max-w-[calc(100%-2rem)]">
           {filters.map((filter) => (
             <button
@@ -86,6 +98,7 @@ export default function VideoBox({
             </button>
           ))}
         </div>
+        {/* Compact local preview for mobile/tablet layouts. */}
         <div className="terminal-panel screen-panel absolute bottom-4 right-4 z-10 h-28 w-28 overflow-hidden bg-ink shadow-[6px_6px_0_rgba(255,79,216,0.65)] sm:h-32 sm:w-32 lg:hidden">
           <video
             ref={mobileLocalVideoRef}
@@ -105,7 +118,9 @@ export default function VideoBox({
         </div>
       </div>
 
+      {/* Right rail holds local preview, safety copy, games button, and side chat. */}
       <aside className="flex min-h-0 flex-col gap-3 sm:gap-4 lg:h-full lg:overflow-y-auto lg:pr-2">
+        {/* Desktop local preview; mobile preview is inside the video stage above. */}
         <div className="terminal-panel screen-panel relative hidden overflow-hidden lg:block lg:h-[22vh] lg:min-h-[180px] lg:max-h-[240px]">
           <video
             ref={localVideoRef}
@@ -125,6 +140,7 @@ export default function VideoBox({
           </div>
         </div>
 
+        {/* Media explanation card changes when alien voice processing is active. */}
         <div className="terminal-panel space-y-3 p-4 font-mono text-sm font-bold uppercase">
           <div className="flex items-center gap-3 text-cream/75">
             {alienVoiceEnabled ? (
@@ -139,6 +155,7 @@ export default function VideoBox({
           {mediaError && <p className="text-amber">{mediaError}</p>}
         </div>
 
+        {/* Collapsed games launcher keeps the video layout open until games are needed. */}
         <button
           className="terminal-panel group relative min-h-16 overflow-hidden border-copper bg-amber p-4 text-left font-mono uppercase text-ink shadow-[8px_8px_0_rgba(255,79,216,0.75)] transition hover:-translate-y-1 hover:shadow-[10px_10px_0_rgba(255,79,216,0.95)]"
           type="button"
@@ -157,9 +174,11 @@ export default function VideoBox({
           </span>
         </button>
 
+        {/* Text chat remains available beside video for people who still need words. */}
         <MiniVideoChat messages={messages} onSend={onSend} disabled={status !== "matched"} />
       </aside>
 
+      {/* Dialog version of the games panel, opened from the highlighted arcade button. */}
       {gamesOpen && (
         <div className="fixed inset-0 z-50 flex items-end bg-ink/80 p-3 backdrop-blur-sm sm:items-center sm:justify-center sm:p-6">
           <div
@@ -188,6 +207,7 @@ export default function VideoBox({
                 <X size={16} aria-hidden="true" />
               </button>
             </div>
+            {/* compact trims launcher spacing so the modal stays usable on small screens. */}
             <MiniGames compact disabled={status !== "matched"} gameState={gameState} gameError={gameError} onGame={onGame} />
           </div>
         </div>
@@ -197,9 +217,12 @@ export default function VideoBox({
 }
 
 function MiniVideoChat({ messages, onSend, disabled }) {
+  // Side-chat draft is separate from the main chat page composer.
   const [draft, setDraft] = useState("");
+  // The side-chat list auto-scrolls just like the full chat page.
   const listRef = useRef(null);
 
+  // Keep the newest side-chat message visible.
   useEffect(() => {
     listRef.current?.scrollTo({
       top: listRef.current.scrollHeight,
@@ -207,6 +230,7 @@ function MiniVideoChat({ messages, onSend, disabled }) {
     });
   }, [messages]);
 
+  // Submit sends through the same socket message path as text chat.
   function submit(event) {
     event.preventDefault();
     onSend(draft);
@@ -219,6 +243,7 @@ function MiniVideoChat({ messages, onSend, disabled }) {
         side chat for emotional damage
       </div>
       <div ref={listRef} className="min-h-28 flex-1 space-y-2 overflow-y-auto p-3">
+        {/* Limit to the newest messages so the compact rail stays readable. */}
         {messages.length === 0 ? (
           <p className="font-mono text-xs font-black uppercase text-cream/45">
             No words yet. The silence has tenure.
@@ -240,6 +265,7 @@ function MiniVideoChat({ messages, onSend, disabled }) {
           ))
         )}
       </div>
+      {/* Small composer for side chat during video mode. */}
       <form className="flex gap-2 border-t-2 border-line p-2" onSubmit={submit}>
         <input
           className="min-w-0 flex-1 rounded-md border-2 border-line bg-ink px-2 text-xs text-cream outline-none placeholder:text-cream/35 focus:border-copper"

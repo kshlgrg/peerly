@@ -2,6 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Root browser defaults: light fallback exists before the PeerLy app shell takes over. */
 :root {
   color-scheme: light;
   background: #f5f0df;
@@ -11,14 +12,17 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Universal border-box keeps Tailwind sizing predictable across cards and panels. */
 * {
   box-sizing: border-box;
 }
 
+/* Smooth scrolling only affects normal page movement, not the realtime panels. */
 html {
   scroll-behavior: smooth;
 }
 
+/* Keep the app at mobile-safe width and prevent horizontal layout leaks. */
 html,
 body,
 #root {
@@ -28,6 +32,7 @@ body,
   overflow-x: hidden;
 }
 
+/* Default body grid background before any route-specific shell is rendered. */
 body {
   margin: 0;
   min-height: 100vh;
@@ -39,20 +44,24 @@ body {
   color: #11110f;
 }
 
+/* Inputs/buttons inherit the app font so controls match surrounding UI. */
 button,
 input {
   font: inherit;
 }
 
+/* Remove mobile tap flash on interactive elements for a cleaner app feel. */
 button,
 a {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Empty video tags stay black instead of flashing white before streams attach. */
 video {
   background: #020202;
 }
 
+/* Global CRT overlay: subtle scanlines and vignette across the whole viewport. */
 body::before {
   position: fixed;
   inset: 0;
@@ -66,6 +75,7 @@ body::before {
   mix-blend-mode: multiply;
 }
 
+/* When a PeerLy route is active, the document switches into the dark neon theme. */
 html:has(.peerly-shell),
 body:has(.peerly-shell),
 #root:has(.peerly-shell) {
@@ -74,6 +84,7 @@ body:has(.peerly-shell),
 }
 
 @layer components {
+  /* Main page shell: neon grid, dark base, and isolated stacking context for overlays. */
   .peerly-shell {
     position: relative;
     isolation: isolate;
@@ -94,6 +105,7 @@ body:has(.peerly-shell),
     color: #f7ffe7;
   }
 
+  /* Moving grid lines behind every page. */
   .peerly-shell::before {
     position: fixed;
     inset: 0;
@@ -106,6 +118,7 @@ body:has(.peerly-shell),
     animation: peerly-grid-drift 16s linear infinite;
   }
 
+  /* Diagonal scan/highlight layer that gives the interface motion even at rest. */
   .peerly-shell::after {
     position: fixed;
     inset: 0;
@@ -119,21 +132,25 @@ body:has(.peerly-shell),
     animation: peerly-scan-slide 9s ease-in-out infinite alternate;
   }
 
+  /* Shared bordered panel used across landing cards, chat panels, video rails, and dialogs. */
   .terminal-panel {
     @apply border-2 border-line bg-panel/95 shadow-glow;
     border-radius: 6px;
   }
 
+  /* Square icon button for compact actions like Home, close, and send. */
   .icon-button {
     @apply inline-flex h-11 w-11 items-center justify-center border-2 border-line bg-ink text-amber transition hover:-translate-y-0.5 hover:border-copper hover:text-copper disabled:cursor-not-allowed disabled:opacity-45;
     border-radius: 6px;
   }
 
+  /* Wide command button for primary text actions like Skip and Request Video. */
   .command-button {
     @apply inline-flex min-h-11 items-center justify-center gap-2 border-2 border-line bg-amber px-4 text-sm font-black uppercase text-ink transition hover:-translate-y-0.5 hover:bg-copper hover:text-ink disabled:cursor-not-allowed disabled:opacity-45;
     border-radius: 6px;
   }
 
+  /* Glitch title treatment used for the big PeerLy wordmark. */
   .sticker-title {
     color: #ff78df;
     text-shadow:
@@ -143,15 +160,18 @@ body:has(.peerly-shell),
       0 0 22px rgba(255, 79, 216, 0.75);
   }
 
+  /* Top ticker strip on the home page. */
   .ticker {
     @apply border-y-2 border-line bg-amber py-2 font-mono text-xs font-black uppercase text-ink;
   }
 
+  /* Screen panel wraps major surfaces and clips scanline overlays correctly. */
   .screen-panel {
     position: relative;
     overflow: hidden;
   }
 
+  /* Screen scanlines on top of panels, separate from the global body overlay. */
   .screen-panel::after {
     position: absolute;
     inset: 0;
@@ -162,22 +182,27 @@ body:has(.peerly-shell),
     opacity: 0.5;
   }
 
+  /* Video filters below are selected from VideoBox.jsx. */
   .video-filter-clean {
     filter: none;
   }
 
+  /* CRT filter: higher contrast and saturation for the default retro video look. */
   .video-filter-crt {
     filter: contrast(1.2) saturate(1.35) hue-rotate(-8deg);
   }
 
+  /* Vapor filter: saturated color shift for playful video mode. */
   .video-filter-vapor {
     filter: contrast(1.25) saturate(1.8) hue-rotate(28deg);
   }
 
+  /* Toxic filter: greener/yellower punch for a more dramatic style. */
   .video-filter-toxic {
     filter: contrast(1.45) saturate(1.55) sepia(0.25) hue-rotate(58deg);
   }
 
+  /* Alien filter: visual distortion paired with the optional alien voice audio track. */
   .video-filter-alien {
     filter: hue-rotate(82deg) saturate(2.4) contrast(1.45) brightness(1.08);
     transform: scaleX(1.16) scaleY(1.03);
@@ -185,6 +210,7 @@ body:has(.peerly-shell),
   }
 }
 
+/* Background grid animation for .peerly-shell::before. */
 @keyframes peerly-grid-drift {
   from {
     background-position: 0 0, 0 0;
@@ -194,6 +220,7 @@ body:has(.peerly-shell),
   }
 }
 
+/* Slow diagonal highlight motion for .peerly-shell::after. */
 @keyframes peerly-scan-slide {
   from {
     transform: translate3d(-2rem, -1rem, 0);
@@ -203,6 +230,7 @@ body:has(.peerly-shell),
   }
 }
 
+/* Accessibility: respect users who prefer reduced motion. */
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;

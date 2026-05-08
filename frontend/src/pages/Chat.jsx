@@ -9,6 +9,7 @@ import { useSocket } from "../hooks/useSocket.js";
 
 export default function Chat() {
   const navigate = useNavigate();
+  // Chat mode joins the text queue and receives all room events through one socket hook.
   const {
     status,
     mode,
@@ -25,9 +26,13 @@ export default function Chat() {
   } = useSocket({
     mode: "text",
   });
+  // A match is required before chat, games, or video upgrades are useful.
   const isMatched = status === "matched";
+  // Only one video upgrade request can be pending at a time.
   const hasVideoRequest = Boolean(videoRequest);
 
+  // When the backend accepts a video upgrade, the same shared session moves to /video.
+  // Messages stay in Zustand, so the user does not lose the chat history.
   useEffect(() => {
     if (mode === "video") {
       navigate("/video");
@@ -39,6 +44,7 @@ export default function Chat() {
       <header className="relative z-10 mx-auto flex w-full max-w-6xl shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <MatchStatus status={status} error={error} />
         <Controls onNext={next} disabled={status === "connecting" || status === "disconnected"}>
+          {/* This sends a consent-based video request instead of forcing both users into camera mode. */}
           <button
             className="command-button border-copper bg-copper text-ink hover:bg-amber"
             type="button"
@@ -51,6 +57,7 @@ export default function Chat() {
           </button>
         </Controls>
       </header>
+      {/* Request banner shows either incoming accept/decline controls or outgoing waiting state. */}
       {videoRequest && (
         <section className="relative z-10 mx-auto w-full max-w-6xl border-2 border-copper bg-[#100014] p-3 font-mono uppercase shadow-[7px_7px_0_rgba(255,79,216,0.7)]">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -66,6 +73,7 @@ export default function Chat() {
               </p>
             </div>
             {videoRequest.direction === "incoming" ? (
+              // Incoming requests require the current user to explicitly accept or decline.
               <div className="flex flex-wrap gap-2">
                 <button
                   className="command-button min-h-10 border-amber bg-amber px-3 text-xs text-ink hover:bg-copper"
@@ -85,6 +93,7 @@ export default function Chat() {
                 </button>
               </div>
             ) : (
+              // Outgoing requests stay pending until the partner responds.
               <span className="w-fit border-2 border-amber bg-amber px-3 py-2 text-xs font-black text-ink">
                 awaiting verdict
               </span>
@@ -94,6 +103,7 @@ export default function Chat() {
       )}
       <div className="relative z-10 mx-auto flex min-h-0 w-full max-w-6xl flex-1 lg:h-full">
         <ChatBox
+          // ChatBox owns the message composer, message list, and embedded games panel.
           messages={messages}
           onSend={sendChat}
           disabled={!isMatched}

@@ -1,29 +1,39 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+// Public STUN server lets peers discover network routes for browser-to-browser media.
 const RTC_CONFIG = {
   iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
 };
 
+// Owns camera/mic access, RTCPeerConnection setup, signaling, and the alien voice effect.
 export function useWebRTC({ status, isInitiator, sendSignal, alienVoiceEnabled = false }) {
+  // Video elements are controlled by refs so streams can be attached directly.
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
+  // Peer connection and streams live in refs because changing them should not rerender UI.
   const peerConnectionRef = useRef(null);
   const localStreamRef = useRef(null);
   const rawStreamRef = useRef(null);
   const rawAudioTrackRef = useRef(null);
+  // Alien audio nodes are stored so they can be stopped cleanly.
   const alienAudioRef = useRef(null);
+  // ICE candidates can arrive before remoteDescription is set, so they wait here.
   const pendingCandidatesRef = useRef([]);
+  // Prevents the initiator from creating duplicate offers.
   const offerStartedRef = useRef(false);
 
+  // localReady unlocks queue joining on the Video page.
   const [localReady, setLocalReady] = useState(false);
   const [mediaError, setMediaError] = useState(null);
 
+  // Attach or clear the remote MediaStream on the remote video element.
   const attachRemoteStream = useCallback((stream) => {
     if (remoteVideoRef.current) {
       remoteVideoRef.current.srcObject = stream;
     }
   }, []);
 
+  // Close the peer connection when leaving a match or resetting the session.
   const closePeerConnection = useCallback(() => {
     peerConnectionRef.current?.close();
     peerConnectionRef.current = null;
@@ -32,6 +42,7 @@ export function useWebRTC({ status, isInitiator, sendSignal, alienVoiceEnabled =
     attachRemoteStream(null);
   }, [attachRemoteStream]);
 
+  // Stop any synthetic alien voice audio graph.
   const stopAlienAudio = useCallback(() => {
     alienAudioRef.current?.track?.stop();
     alienAudioRef.current?.oscillator?.stop();
@@ -39,14 +50,17 @@ export function useWebRTC({ status, isInitiator, sendSignal, alienVoiceEnabled =
     alienAudioRef.current = null;
   }, []);
 
+  // Builds a processed audio track using Web Audio nodes for the alien filter.
   const createAlienAudioTrack = useCallback(() => {
     const rawAudioTrack = rawAudioTrackRef.current;
     const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
 
+    // If the browser has no audio track/API, fall back to the normal microphone.
     if (!rawAudioTrack || !AudioContextConstructor) {
       return rawAudioTrack;
     }
 
+    // Reset old nodes before creating a fresh audio graph.
     stopAlienAudio();
 
     const audioContext = new AudioContextConstructor();
@@ -58,12 +72,14 @@ export function useWebRTC({ status, isInitiator, sendSignal, alienVoiceEnabled =
     const oscillatorDepth = audioContext.createGain();
     const destination = audioContext.createMediaStreamDestination();
 
+    // Distortion curve creates the crunchy "alien" texture.
     const curve = new Float32Array(256);
     for (let index = 0; index < curve.length; index += 1) {
       const x = (index * 2) / curve.length - 1;
       curve[index] = Math.tanh(2.4 * x);
     }
 
+    // Configure the filter chain: bandpass -> distortion -> amplitude modulation.
     bandpass.type = "bandpass";
     bandpass.frequency.value = 920;
     bandpass.Q.value = 3.5;
@@ -74,6 +90,7 @@ export function useWebRTC({ status, isInitiator, sendSignal, alienVoiceEnabled =
     oscillator.frequency.value = 38;
     oscillatorDepth.gain.value = 0.28;
 
+    // Wire nodes into the destination stream and start the oscillator.
     source.connect(bandpass);
     bandpass.connect(shaper);
     shaper.connect(modulator);
@@ -83,12 +100,14 @@ export function useWebRTC({ status, isInitiator, sendSignal, alienVoiceEnabled =
     oscillator.start();
     audioContext.resume?.();
 
+    // Return the processed track so it can replace the outgoing mic track.
     const [track] = destination.stream.getAudioTracks();
     alienAudioRef.current = { audioContext, oscillator, track };
 
     return track;
   }, [stopAlienAudio]);
 
+  // Replace the audio track already being sent to the peer without rebuilding video.
   const replaceOutgoingAudioTrack = useCallback((track) => {
     const audioSender = peerConnectionRef.current
       ?.getSenders()
@@ -97,6 +116,7 @@ export function useWebRTC({ status, isInitiator, sendSignal, alienVoiceEnabled =
     audioSender?.replaceTrack(track ?? null);
   }, []);
 
+  // Rebuild local stream when alien voice toggles, keeping video track unchanged.
   const applyAudioMode = useCallback(() => {
     const rawStream = rawStreamRef.current;
     if (!rawStream) {
@@ -106,10 +126,12 @@ export function useWebRTC({ status, isInitiator, sendSignal, alienVoiceEnabled =
     const videoTracks = rawStream.getVideoTracks();
     const audioTrack = alienVoiceEnabled ? createAlienAudioTrack() : rawAudioTrackRef.current;
 
+    // Turning alien off should stop the synthetic audio graph immediately.
     if (!alienVoiceEnabled) {
       stopAlienAudio();
     }
 
+    // Local preview shows the same stream that is sent to the peer.
     const nextStream = new MediaStream([...videoTracks, ...(audioTrack ? [audioTrack] : [])]);
     localStreamRef.current = nextStream;
     replaceOutgoingAudioTrack(audioTrack);
@@ -119,6 +141,7 @@ export function useWebRTC({ status, isInitiator, sendSignal, alienVoiceEnabled =
     }
   }, [alienVoiceEnabled, createAlienAudioTrack, replaceOutgoingAudioTrack, stopAlienAudio]);
 
+  // Lazily create the peer connection and attach local tracks/signaling listeners.
   const ensurePeerConnection = useCallback(() => {
     if (peerConnectionRef.current) {
       return peerConnectionRef.current;
@@ -127,16 +150,19 @@ export function useWebRTC({ status, isInitiator, sendSignal, alienVoiceEnabled =
     const peerConnection = new RTCPeerConnection(RTC_CONFIG);
     peerConnectionRef.current = peerConnection;
 
+    // Add every local camera/mic track to the outgoing WebRTC connection.
     localStreamRef.current?.getTracks().forEach((track) => {
       peerConnection.addTrack(track, localStreamRef.current);
     });
 
+    // ICE candidates are sent to the backend, then forwarded to the partner.
     peerConnection.addEventListener("icecandidate", (event) => {
       if (event.candidate) {
         sendSignal("ice", event.candidate);
       }
     });
 
+    // Remote media arrives through track events and is attached to the remote video tag.
     peerConnection.addEventListener("track", (event) => {
       attachRemoteStream(event.streams[0]);
     });
@@ -144,6 +170,7 @@ export function useWebRTC({ status, isInitiator, sendSignal, alienVoiceEnabled =
     return peerConnection;
   }, [attachRemoteStream, sendSignal]);
 
+  // Add ICE candidates that arrived before remoteDescription was ready.
   const flushPendingIce = useCallback(async (peerConnection) => {
     const candidates = pendingCandidatesRef.current;
     pendingCandidatesRef.current = [];
@@ -153,10 +180,12 @@ export function useWebRTC({ status, isInitiator, sendSignal, alienVoiceEnabled =
     }
   }, []);
 
+  // Handle offer/answer/ice messages delivered from the WebSocket hook.
   const handleSignal = useCallback(
     async (payload) => {
       const peerConnection = ensurePeerConnection();
 
+      // Offer means the partner started negotiation; answer with local media details.
       if (payload.type === "offer") {
         await peerConnection.setRemoteDescription(new RTCSessionDescription(payload.data));
         await flushPendingIce(peerConnection);
@@ -165,11 +194,13 @@ export function useWebRTC({ status, isInitiator, sendSignal, alienVoiceEnabled =
         sendSignal("answer", answer);
       }
 
+      // Answer completes the initiator's negotiation path.
       if (payload.type === "answer") {
         await peerConnection.setRemoteDescription(new RTCSessionDescription(payload.data));
         await flushPendingIce(peerConnection);
       }
 
+      // ICE candidates may need to wait until after remoteDescription is set.
       if (payload.type === "ice") {
         if (peerConnection.remoteDescription) {
           await peerConnection.addIceCandidate(new RTCIceCandidate(payload.data));
@@ -181,6 +212,7 @@ export function useWebRTC({ status, isInitiator, sendSignal, alienVoiceEnabled =
     [ensurePeerConnection, flushPendingIce, sendSignal],
   );
 
+  // Ask the browser for camera/mic once when the video hook mounts.
   useEffect(() => {
     let cancelled = false;
 
@@ -191,11 +223,13 @@ export function useWebRTC({ status, isInitiator, sendSignal, alienVoiceEnabled =
           audio: true,
         });
 
+        // If the component unmounted during permission prompt, stop the granted tracks.
         if (cancelled) {
           stream.getTracks().forEach((track) => track.stop());
           return;
         }
 
+        // Save the raw stream/tracks so filters can rebuild processed streams later.
         rawStreamRef.current = stream;
         rawAudioTrackRef.current = stream.getAudioTracks()[0] ?? null;
         localStreamRef.current = stream;
@@ -203,6 +237,7 @@ export function useWebRTC({ status, isInitiator, sendSignal, alienVoiceEnabled =
           stream.getTracks().forEach((track) => {
             peerConnectionRef.current.addTrack(track, stream);
           });
+        // Show the local camera preview immediately after permission succeeds.
         if (localVideoRef.current) {
           localVideoRef.current.srcObject = stream;
         }
@@ -215,6 +250,7 @@ export function useWebRTC({ status, isInitiator, sendSignal, alienVoiceEnabled =
     startMedia();
 
     return () => {
+      // Cleanup prevents camera/mic from staying on after leaving the video page.
       cancelled = true;
       closePeerConnection();
       stopAlienAudio();
@@ -225,12 +261,14 @@ export function useWebRTC({ status, isInitiator, sendSignal, alienVoiceEnabled =
     };
   }, [closePeerConnection, stopAlienAudio]);
 
+  // Reapply audio mode whenever the alien filter changes after media is ready.
   useEffect(() => {
     if (localReady) {
       applyAudioMode();
     }
   }, [applyAudioMode, localReady]);
 
+  // Once matched, the initiator creates the offer that starts WebRTC negotiation.
   useEffect(() => {
     if (status !== "matched") {
       closePeerConnection();
@@ -242,6 +280,7 @@ export function useWebRTC({ status, isInitiator, sendSignal, alienVoiceEnabled =
     }
 
     async function startOffer() {
+      // Mark first so duplicate renders do not produce multiple offers.
       offerStartedRef.current = true;
       const peerConnection = ensurePeerConnection();
       const offer = await peerConnection.createOffer();
@@ -250,11 +289,13 @@ export function useWebRTC({ status, isInitiator, sendSignal, alienVoiceEnabled =
     }
 
     startOffer().catch((error) => {
+      // Let the user see offer failures and allow another attempt later.
       setMediaError(error.message || "Could not start video chat.");
       offerStartedRef.current = false;
     });
   }, [closePeerConnection, ensurePeerConnection, isInitiator, localReady, sendSignal, status]);
 
+  // Expose refs/state/handler to the Video page and VideoBox component.
   return {
     localVideoRef,
     remoteVideoRef,
