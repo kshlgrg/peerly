@@ -2,6 +2,11 @@
 
 FastAPI WebSocket server for PeerLy matching, text relay, and WebRTC signaling.
 
+## Endpoints
+
+- `GET /health` returns a simple health payload for uptime checks.
+- `WS /ws` handles queue joins, chat relay, reports, skip events, games, and WebRTC signaling.
+
 ## Run
 
 ```bash
