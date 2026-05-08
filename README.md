@@ -21,6 +21,13 @@ PeerLy is maintained as a collaborative project.
 - Includes a small report flow for lightweight moderation.
 - Ships with a warm Gen Z retro-computer interface: CRT scanlines, terminal panels, amber glow, savage little micro-toys, and mobile-friendly layouts.
 
+## App Flow
+
+1. Pick text or video mode from the home screen.
+2. Join the live queue and wait for a peer match.
+3. Chat, play a quick mini-game, or start a video room.
+4. Use **Next** to leave the current room and return to matching.
+
 ## Tech Stack
 
 **Frontend**
