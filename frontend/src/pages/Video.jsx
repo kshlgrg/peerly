@@ -25,9 +25,25 @@ export default function Video() {
     status: socket.status,
     isInitiator: socket.isInitiator,
     sendSignal: socket.sendSignal,
+    onDirectMessage: (payload) => {
+      if (payload?.type === "chat" && payload?.text) {
+        socket.addDirectMessage(payload.text);
+      }
+    },
     alienVoiceEnabled,
   });
   const reconnect = socket.reconnect;
+
+  // Send over direct RTCDataChannel if open (0 server load), fallback to server WebSocket
+  const handleSendChat = (text) => {
+    const clean = text.trim();
+    if (!clean) return;
+    if (webRTC.sendDirect({ type: "chat", text: clean })) {
+      socket.addLocalMessage(clean);
+    } else {
+      socket.sendChat(clean);
+    }
+  };
 
   // Keep the socket's signal callback pointed at the newest WebRTC handler.
   useEffect(() => {
@@ -58,7 +74,7 @@ export default function Video() {
           localReady={webRTC.localReady}
           mediaError={webRTC.mediaError}
           messages={socket.messages}
-          onSend={socket.sendChat}
+          onSend={handleSendChat}
           gameState={socket.gameState}
           gameError={socket.gameError}
           onGame={socket.sendGame}

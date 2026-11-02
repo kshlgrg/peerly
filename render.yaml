@@ -1,15 +1,19 @@
 services:
   - type: web
     name: peerly-api
-    runtime: python
+    runtime: docker
+    dockerfilePath: backend-rust/Dockerfile
+    dockerContext: backend-rust
     plan: free
-    buildCommand: cd backend && pip install -r requirements.txt
-    startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     envVars:
       - key: PEERLY_CORS_ORIGINS
         sync: false
       - key: PEERLY_WS_ORIGINS
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
         sync: false
 
   - type: web

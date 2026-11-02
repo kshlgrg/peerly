@@ -6,6 +6,7 @@ const games = [
   ["connect_four", "Connect Four", "Gravity doing emotional damage."],
   ["dice_race", "Dice Race", "Server rolls. Your excuses do not."],
   ["loot_tiles", "Loot Tiles", "Mystery points for suspicious people."],
+  ["hot_takes", "Vibe Check", "Spicy campus takes. Agree or fight."],
 ];
 
 export default function MiniGames({ compact = false, disabled = false, gameState, gameError, onGame }) {
@@ -66,6 +67,7 @@ export default function MiniGames({ compact = false, disabled = false, gameState
           {gameState.type === "connect_four" && <ConnectFour state={gameState} move={move} isYourTurn={isYourTurn} />}
           {gameState.type === "dice_race" && <DiceRace state={gameState} move={move} isYourTurn={isYourTurn} />}
           {gameState.type === "loot_tiles" && <LootTiles state={gameState} move={move} isYourTurn={isYourTurn} />}
+          {gameState.type === "hot_takes" && <HotTakes state={gameState} move={move} />}
         </div>
       )}
     </section>
@@ -196,6 +198,46 @@ function LootTiles({ state, move, isYourTurn }) {
           </button>
         ))}
       </div>
+    </div>
+  );
+}
+
+function HotTakes({ state, move }) {
+  const hasVoted = state.myVote !== null && state.myVote !== undefined;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex justify-between text-xs font-black text-cream/70">
+        <span>Question {(state.questionIndex ?? 0) + 1}/{state.totalQuestions ?? 6}</span>
+        <span className="text-amber">Vibe Score: {state.vibeScore ?? 0}</span>
+      </div>
+      <div className="border-2 border-line bg-[#120015] p-3 text-center">
+        <p className="text-xs font-bold leading-5 text-amber">
+          &ldquo;{state.question}&rdquo;
+        </p>
+      </div>
+      {hasVoted ? (
+        <p className="text-center text-xs font-bold text-copper">
+          Vote locked ({state.myVote ? "AGREE" : "DISAGREE"}). Waiting for partner...
+        </p>
+      ) : (
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            className="min-h-11 border-2 border-amber bg-amber font-mono text-xs font-black text-ink hover:opacity-90"
+            type="button"
+            onClick={() => move({ vote: true })}
+          >
+            Agree
+          </button>
+          <button
+            className="min-h-11 border-2 border-copper bg-copper font-mono text-xs font-black text-ink hover:opacity-90"
+            type="button"
+            onClick={() => move({ vote: false })}
+          >
+            Disagree
+          </button>
+        </div>
+      )}
     </div>
   );
 }

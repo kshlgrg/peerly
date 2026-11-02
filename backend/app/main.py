@@ -3,13 +3,18 @@ import json
 import os
 import random
 from collections import deque
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.middleware.cors import CORSMiddleware
+
+# Import Supabase logger
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+from supabase_client import supabase_logger
 
 
 app = FastAPI(title="PeerLy API")
@@ -41,6 +46,9 @@ class Client:
     id: str
     websocket: WebSocket
     mode: str | None = None
+    ip_address: str | None = None
+    session_id: str | None = None
+    user_type: str | None = None  # 'user1' or 'user2' in their session
 
 
 class ConnectionManager:
@@ -54,11 +62,29 @@ class ConnectionManager:
         self.reports: deque[dict[str, Any]] = deque(maxlen=250)
         self.games: dict[str, dict[str, Any]] = {}
         self.video_requests: dict[str, str] = {}
+        self.sessions: dict[str, dict[str, Any]] = {}  # Track active sessions
         self.lock = asyncio.Lock()
+        self.supabase_enabled = supabase_logger.initialize()
 
-    async def connect(self, websocket: WebSocket) -> Client:
+    async def connect(self, websocket: WebSocket, request: Request = None) -> Client:
         await websocket.accept()
         client = Client(id=str(uuid4()), websocket=websocket)
+
+        # Get client IP address
+        if request:
+            # Try to get real IP from headers (useful for reverse proxies)
+            forwarded_for = request.headers.get("x-forwarded-for")
+            if forwarded_for:
+                client.ip_address = forwarded_for.split(",")[0].strip()
+            else:
+                real_ip = request.headers.get("x-real-ip")
+                if real_ip:
+                    client.ip_address = real_ip
+                else:
+                    client.ip_address = request.client.host if request.client else "unknown"
+        else:
+            client.ip_address = "unknown"
+
         async with self.lock:
             self.clients[client.id] = client
 
@@ -68,6 +94,7 @@ class ConnectionManager:
     async def disconnect(self, client_id: str) -> None:
         partner_to_requeue: str | None = None
         partner_mode: str | None = None
+        session_id: str | None = None
 
         async with self.lock:
             client = self.clients.pop(client_id, None)
@@ -76,15 +103,23 @@ class ConnectionManager:
             for blocked_ids in self.skip_blocks.values():
                 blocked_ids.discard(client_id)
 
-            partner_id = self.partners.pop(client_id, None)
-            if partner_id:
-                self.partners.pop(partner_id, None)
-                self.games.pop(pair_key(client_id, partner_id), None)
-                self.video_requests.pop(pair_key(client_id, partner_id), None)
-                partner = self.clients.get(partner_id)
-                if partner:
-                    partner_to_requeue = partner_id
+                partner_id = self.partners.pop(client_id, None)
+                if partner_id:
+                    self.partners.pop(partner_id, None)
+                    self.games.pop(pair_key(client_id, partner_id), None)
+                    self.video_requests.pop(pair_key(client_id, partner_id), None)
+                    partner = self.clients.get(partner_id)
+                    if partner:
+                        partner_to_requeue = partner_id
                     partner_mode = partner.mode
+
+            # Get session ID for logging
+            if client:
+                session_id = client.session_id
+
+        # End session in Supabase on disconnect
+        if self.supabase_enabled and session_id:
+            supabase_logger.end_chat_session(session_id, end_reason="disconnect")
 
         if partner_to_requeue:
             await self.send(
@@ -123,13 +158,61 @@ class ConnectionManager:
 
         if matched_pair:
             first_id, second_id = matched_pair
+            session_id = str(uuid4())
+            matched_at = now_iso()
+
+            # Update client session info
+            first_client = self.clients.get(first_id)
+            second_client = self.clients.get(second_id)
+
+            if first_client:
+                first_client.session_id = session_id
+                first_client.user_type = "user1"
+            if second_client:
+                second_client.session_id = session_id
+                second_client.user_type = "user2"
+
+            # Create session in Supabase
+            if self.supabase_enabled and first_client and second_client:
+                supabase_logger.create_chat_session(
+                    session_id=session_id,
+                    client1_id=first_id,
+                    client1_ip=first_client.ip_address or "unknown",
+                    client2_id=second_id,
+                    client2_ip=second_client.ip_address or "unknown",
+                    room_mode=mode
+                )
+
+            # Log match events
+            if self.supabase_enabled:
+                supabase_logger.log_chat_message(
+                    session_id=session_id,
+                    client_id=first_id,
+                    client_ip=first_client.ip_address or "unknown",
+                    user_type="user1",
+                    message_type="matched",
+                    metadata={"initiator": True, "partner_id": second_id},
+                    matched_at=matched_at,
+                    room_mode=mode
+                )
+                supabase_logger.log_chat_message(
+                    session_id=session_id,
+                    client_id=second_id,
+                    client_ip=second_client.ip_address or "unknown",
+                    user_type="user2",
+                    message_type="matched",
+                    metadata={"initiator": False, "partner_id": first_id},
+                    matched_at=matched_at,
+                    room_mode=mode
+                )
+
             await self.send(
                 first_id,
-                {"type": "matched", "mode": mode, "initiator": True, "matchedAt": now_iso()},
+                {"type": "matched", "mode": mode, "initiator": True, "matchedAt": matched_at},
             )
             await self.send(
                 second_id,
-                {"type": "matched", "mode": mode, "initiator": False, "matchedAt": now_iso()},
+                {"type": "matched", "mode": mode, "initiator": False, "matchedAt": matched_at},
             )
         else:
             await self.send(client_id, {"type": "waiting", "mode": mode})
@@ -137,6 +220,7 @@ class ConnectionManager:
     async def next(self, client_id: str) -> None:
         mode: str | None = None
         affected: list[str] = []
+        session_id: str | None = None
 
         async with self.lock:
             client = self.clients.get(client_id)
@@ -144,10 +228,29 @@ class ConnectionManager:
                 return
 
             mode = client.mode
+            session_id = client.session_id
             affected = self._break_pair_unlocked(client_id)
             if len(affected) == 2:
                 self._block_recent_pair_unlocked(affected[0], affected[1])
             self._remove_from_waiting_unlocked(client_id)
+
+        # Log skip event to Supabase
+        if self.supabase_enabled and session_id:
+            for affected_id in affected:
+                affected_client = self.clients.get(affected_id)
+                if affected_client:
+                    supabase_logger.log_chat_message(
+                        session_id=session_id,
+                        client_id=affected_id,
+                        client_ip=affected_client.ip_address or "unknown",
+                        user_type=affected_client.user_type or "unknown",
+                        message_type="next",
+                        metadata={"initiator_id": client_id},
+                        room_mode=mode or "unknown"
+                    )
+
+            # End session in Supabase
+            supabase_logger.end_chat_session(session_id, end_reason="next")
 
         for affected_id in affected:
             if affected_id != client_id:
@@ -200,6 +303,21 @@ class ConnectionManager:
             await self.send(sender_id, {"type": "game_error", "message": error_message})
             return
         if sender_state and partner_state and partner_id:
+            # Log game event to Supabase
+            if self.supabase_enabled:
+                sender_client = self.clients.get(sender_id)
+                if sender_client and sender_client.session_id:
+                    supabase_logger.log_chat_message(
+                        session_id=sender_client.session_id,
+                        client_id=sender_id,
+                        client_ip=sender_client.ip_address or "unknown",
+                        user_type=sender_client.user_type or "unknown",
+                        message_type="game",
+                        message_content=None,
+                        metadata=payload,
+                        room_mode=sender_client.mode or "unknown"
+                    )
+
             await self.send(sender_id, {"type": "game_state", "data": sender_state})
             await self.send(partner_id, {"type": "game_state", "data": partner_state})
 
@@ -325,6 +443,19 @@ class ConnectionManager:
             },
         )
 
+        if self.supabase_enabled:
+            sender_client = self.clients.get(sender_id)
+            if sender_client and sender_client.session_id:
+                supabase_logger.log_chat_message(
+                    session_id=sender_client.session_id,
+                    client_id=sender_id,
+                    client_ip=sender_client.ip_address or "unknown",
+                    user_type=sender_client.user_type or "unknown",
+                    message_type="mode_changed",
+                    metadata={"mode": mode, "partner_id": partner_id},
+                    room_mode=mode,
+                )
+
     async def relay(self, sender_id: str, payload: dict[str, Any]) -> None:
         async with self.lock:
             partner_id = self.partners.get(sender_id)
@@ -339,10 +470,28 @@ class ConnectionManager:
         if message_type == "message":
             outgoing["sentAt"] = now_iso()
 
+        # Log to Supabase
+        if self.supabase_enabled:
+            sender_client = self.clients.get(sender_id)
+            if sender_client and sender_client.session_id:
+                supabase_logger.log_chat_message(
+                    session_id=sender_client.session_id,
+                    client_id=sender_id,
+                    client_ip=sender_client.ip_address or "unknown",
+                    user_type=sender_client.user_type or "unknown",
+                    message_type=message_type,
+                    message_content=str(data) if message_type == "message" else None,
+                    metadata={"payload": payload},
+                    room_mode=sender_client.mode or "unknown"
+                )
+
         await self.send(partner_id, outgoing)
 
     async def report(self, reporter_id: str, reason: str) -> None:
         clean_reason = str(reason)[:280]
+        partner_id: str | None = None
+        session_id: str | None = None
+
         async with self.lock:
             partner_id = self.partners.get(reporter_id)
             self.reports.append(
@@ -352,6 +501,24 @@ class ConnectionManager:
                     "reason": clean_reason,
                     "createdAt": now_iso(),
                 }
+            )
+
+            # Get session info for logging
+            reporter_client = self.clients.get(reporter_id)
+            if reporter_client:
+                session_id = reporter_client.session_id
+
+        # Log report to Supabase
+        if self.supabase_enabled and session_id and reporter_client:
+            supabase_logger.log_chat_message(
+                session_id=session_id,
+                client_id=reporter_id,
+                client_ip=reporter_client.ip_address or "unknown",
+                user_type=reporter_client.user_type or "unknown",
+                message_type="report",
+                message_content=clean_reason,
+                metadata={"reported_partner_id": partner_id},
+                room_mode=reporter_client.mode or "unknown"
             )
 
         await self.send(
@@ -649,13 +816,13 @@ async def root() -> dict[str, str]:
 
 
 @app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket) -> None:
+async def websocket_endpoint(websocket: WebSocket, request: Request = None) -> None:
     origin = websocket.headers.get("origin")
     if origin and not ALLOW_ANY_WS_ORIGIN and origin not in ALLOWED_WS_ORIGINS:
         await websocket.close(code=1008)
         return
 
-    client = await manager.connect(websocket)
+    client = await manager.connect(websocket, request)
     try:
         while True:
             raw_message = await websocket.receive_text()

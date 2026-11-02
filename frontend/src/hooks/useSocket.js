@@ -384,6 +384,21 @@ export function useSocket({ mode, onSignal, autoConnect = true }) {
     [send],
   );
 
+  // Directly append a peer message received via RTCDataChannel (0 server relay)
+  const addDirectMessage = useCallback(
+    (text) => {
+      addMessage({ role: "partner", text, sentAt: new Date().toISOString() });
+    },
+    [addMessage],
+  );
+
+  const addLocalMessage = useCallback(
+    (text) => {
+      addMessage({ role: "me", text, sentAt: new Date().toISOString() });
+    },
+    [addMessage],
+  );
+
   // Pages use this returned object as their realtime API.
   return {
     status,
@@ -397,6 +412,8 @@ export function useSocket({ mode, onSignal, autoConnect = true }) {
     sendChat,
     sendSignal,
     sendGame,
+    addDirectMessage,
+    addLocalMessage,
     upgradeToVideo,
     respondToVideoRequest,
     next,

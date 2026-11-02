@@ -5,13 +5,14 @@ const RTC_CONFIG = {
   iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
 };
 
-// Owns camera/mic access, RTCPeerConnection setup, signaling, and the alien voice effect.
-export function useWebRTC({ status, isInitiator, sendSignal, alienVoiceEnabled = false }) {
+// Owns camera/mic access, RTCPeerConnection setup, signaling, data channel, and the alien voice effect.
+export function useWebRTC({ status, isInitiator, sendSignal, onDirectMessage, alienVoiceEnabled = false }) {
   // Video elements are controlled by refs so streams can be attached directly.
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   // Peer connection and streams live in refs because changing them should not rerender UI.
   const peerConnectionRef = useRef(null);
+  const dataChannelRef = useRef(null);
   const localStreamRef = useRef(null);
   const rawStreamRef = useRef(null);
   const rawAudioTrackRef = useRef(null);
@@ -35,12 +36,45 @@ export function useWebRTC({ status, isInitiator, sendSignal, alienVoiceEnabled =
 
   // Close the peer connection when leaving a match or resetting the session.
   const closePeerConnection = useCallback(() => {
+    dataChannelRef.current?.close();
+    dataChannelRef.current = null;
     peerConnectionRef.current?.close();
     peerConnectionRef.current = null;
     pendingCandidatesRef.current = [];
     offerStartedRef.current = false;
     attachRemoteStream(null);
   }, [attachRemoteStream]);
+
+  // Setup direct RTCDataChannel for peer-to-peer chat and game actions
+  const setupDataChannel = useCallback((channel) => {
+    dataChannelRef.current = channel;
+    channel.onopen = () => {
+      console.log("⚡ RTCDataChannel connected: Direct peer-to-peer data active!");
+    };
+    channel.onclose = () => {
+      dataChannelRef.current = null;
+    };
+    channel.onmessage = (event) => {
+      try {
+        const payload = JSON.parse(event.data);
+        onDirectMessage?.(payload);
+      } catch (err) {
+        console.warn("Invalid direct P2P data channel message", err);
+      }
+    };
+  }, [onDirectMessage]);
+
+  const sendDirect = useCallback((payload) => {
+    if (dataChannelRef.current && dataChannelRef.current.readyState === "open") {
+      try {
+        dataChannelRef.current.send(JSON.stringify(payload));
+        return true;
+      } catch (e) {
+        console.warn("Failed to send over RTCDataChannel, falling back to server", e);
+      }
+    }
+    return false;
+  }, []);
 
   // Stop any synthetic alien voice audio graph.
   const stopAlienAudio = useCallback(() => {
@@ -155,6 +189,21 @@ export function useWebRTC({ status, isInitiator, sendSignal, alienVoiceEnabled =
       peerConnection.addTrack(track, localStreamRef.current);
     });
 
+    // Create RTCDataChannel if initiator
+    if (isInitiator) {
+      try {
+        const dc = peerConnection.createDataChannel("peerly-p2p");
+        setupDataChannel(dc);
+      } catch (err) {
+        console.warn("Could not create RTCDataChannel:", err);
+      }
+    }
+
+    // Listen for remote data channel if receiver
+    peerConnection.addEventListener("datachannel", (event) => {
+      setupDataChannel(event.channel);
+    });
+
     // ICE candidates are sent to the backend, then forwarded to the partner.
     peerConnection.addEventListener("icecandidate", (event) => {
       if (event.candidate) {
@@ -168,7 +217,7 @@ export function useWebRTC({ status, isInitiator, sendSignal, alienVoiceEnabled =
     });
 
     return peerConnection;
-  }, [attachRemoteStream, sendSignal]);
+  }, [attachRemoteStream, isInitiator, sendSignal, setupDataChannel]);
 
   // Add ICE candidates that arrived before remoteDescription was ready.
   const flushPendingIce = useCallback(async (peerConnection) => {
@@ -302,5 +351,6 @@ export function useWebRTC({ status, isInitiator, sendSignal, alienVoiceEnabled =
     localReady,
     mediaError,
     handleSignal,
+    sendDirect,
   };
 }

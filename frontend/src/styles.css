@@ -208,6 +208,11 @@ body:has(.peerly-shell),
     transform: scaleX(1.16) scaleY(1.03);
     transform-origin: center;
   }
+
+  /* Mystery filter: blur to break camera anxiety before eye contact */
+  .video-filter-mystery {
+    filter: blur(18px) contrast(1.2) brightness(0.9);
+  }
 }
 
 /* Background grid animation for .peerly-shell::before. */

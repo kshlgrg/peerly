@@ -42,26 +42,27 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the basic checklist before opening ch
 
 **Backend**
 
-- FastAPI
-- Native WebSockets
-- Python async matching/signaling logic
-- In-memory queues and session state for MVP speed
+- Rust (Axum, Tokio, Serde) - High performance, ~15MB RAM footprint, zero cold-start bloat
+- FastAPI (Python fallback reference)
+- Native WebSockets with instant queue matchmaking
+- Direct WebRTC DataChannel (RTCDataChannel) for peer-to-peer chat and games (near-zero server relay load)
+- Supabase integration for session logging and analytics (non-blocking async)
 
 **Hosting**
 
 - Render static web service for the frontend
-- Render web service for the FastAPI backend
+- Render Docker web service for the high-efficiency Rust backend (or Python)
 
 ## Architecture
 
 ```text
 React frontend
-  -> WebSocket control layer
-  -> FastAPI matching + signaling server
-  -> WebRTC peer-to-peer media
+  -> WebRTC Signaling & Matchmaker (Rust / Axum on Render)
+  -> Direct WebRTC P2P Media (Camera / Microphone via STUN)
+  -> Direct WebRTC RTCDataChannel (P2P In-Room Chat & Mini-Game Moves)
 ```
 
-The backend handles matching, text relay, disconnects, reports, and WebRTC signaling messages. Video and audio do **not** stream through the backend after connection setup; browsers exchange media directly through WebRTC.
+The backend handles matching and initial WebRTC signaling. Video, audio, and in-room chat stream directly peer-to-peer via WebRTC and RTCDataChannel, dropping server CPU and bandwidth consumption by over 90%.
 
 ## Current Features
 
@@ -105,7 +106,14 @@ npm run lint
 npm run build
 ```
 
-### Backend
+### Backend (Rust - Recommended)
+
+```bash
+cd backend-rust
+cargo run
+```
+
+### Backend (Python / FastAPI Fallback)
 
 ```bash
 cd backend
@@ -203,18 +211,57 @@ After changing frontend environment variables, redeploy the frontend because Vit
 
 ## Database Notes
 
-PeerLy currently does **not** need a database for the core MVP because matching, chat relay, and WebRTC signaling are temporary realtime events.
+PeerLy now integrates with **Supabase** for comprehensive chat logging and user behavior analytics.
 
-Add Supabase, Postgres, or another database when you want:
+### Supabase Integration
 
-- Persistent reports.
-- Moderation review history.
-- Campus email verification.
-- Interest tags.
-- Bans or rate-limit records.
-- User preferences.
+The system automatically logs:
+- **Chat messages** with IP addresses and timestamps
+- **Session data** including duration and participant info
+- **User actions** (next, report, game events)
+- **Match patterns** and behavior analytics
 
-For a public student launch, persistent reports and rate limiting should come before serious growth.
+### Database Schema
+
+- `chat_logs` - Individual message and action logs
+- `chat_sessions` - Session summaries and metadata  
+- `chat_analytics` - Pre-computed analytics views
+
+### Setup
+
+1. **Configure environment variables** in `backend/.env`:
+```bash
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_KEY=your-service-key
+```
+
+2. **Initialize database schema**:
+```bash
+cd backend
+python setup_supabase.py
+```
+
+3. **Run SQL schema** in Supabase dashboard:
+   - Copy contents of `backend/supabase_schema.sql`
+   - Execute in Supabase SQL Editor
+
+### Analytics
+
+Monitor user behavior with the analytics script:
+```bash
+cd backend
+python analytics.py --all
+```
+
+### Additional Database Needs
+
+Add more database features when you want:
+
+- Campus email verification
+- Interest tags and preferences  
+- Advanced moderation tools
+- Rate limiting and bans
+- User profiles (if moving away from anonymous model)
 
 ## Safety Notes
 

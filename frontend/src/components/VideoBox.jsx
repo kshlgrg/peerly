@@ -11,6 +11,7 @@ export const filters = [
   { id: "vapor", label: "Vapor", className: "video-filter-vapor" },
   { id: "toxic", label: "Toxic", className: "video-filter-toxic" },
   { id: "alien", label: "Alien", className: "video-filter-alien" },
+  { id: "mystery", label: "Mystery", className: "video-filter-mystery" },
 ];
 
 export default function VideoBox({
