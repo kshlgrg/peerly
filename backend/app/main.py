@@ -617,6 +617,28 @@ class ConnectionManager:
                 "message": "Loot Tiles started. Pick tiles, collect points, trust no square.",
             }
 
+        if game_type == "hot_takes":
+            questions = [
+                "Pineapple belongs on pizza and haters are cowardice personified.",
+                "Voice notes longer than 20 seconds are an unsolicited podcast.",
+                "Leaving people on read is a fundamental human right.",
+                "Dark mode is superior even in direct sunlight.",
+                "AI tools write cleaner code than 80% of humans.",
+                "8 AM lectures should be banned under international conventions.",
+            ]
+            random.shuffle(questions)
+            return {
+                "type": "hot_takes",
+                "players": [first_id, second_id],
+                "current_question": 0,
+                "questions": questions,
+                "votes": {first_id: None, second_id: None},
+                "vibe_score": 0,
+                "status": "playing",
+                "winner": None,
+                "message": "Vibe Check started. Vote honestly or face eternal cringe.",
+            }
+
         return {
             "type": "tic_tac_toe",
             "players": [first_id, second_id],
@@ -642,6 +664,8 @@ class ConnectionManager:
             return apply_dice_race_move(game, player_id)
         if game_type == "loot_tiles":
             return apply_loot_tiles_move(game, player_id, move)
+        if game_type == "hot_takes":
+            return apply_hot_takes_move(game, player_id, move)
         return "Unknown game."
 
 
@@ -740,6 +764,35 @@ def apply_loot_tiles_move(game: dict[str, Any], player_id: str, move: dict[str, 
     return None
 
 
+def apply_hot_takes_move(game: dict[str, Any], player_id: str, move: dict[str, Any]) -> str | None:
+    vote = move.get("vote")
+    if not isinstance(vote, bool):
+        return "Vote agree or disagree."
+    game["votes"][player_id] = vote
+
+    p0, p1 = game["players"]
+    v0 = game["votes"].get(p0)
+    v1 = game["votes"].get(p1)
+
+    if v0 is not None and v1 is not None:
+        if v0 == v1:
+            game["vibe_score"] += 1
+            game["message"] = "Vibe match! You two actually agree on something."
+        else:
+            game["message"] = "Disagreement recorded. The simulation is fracturing."
+        game["current_question"] += 1
+        if game["current_question"] >= len(game["questions"]):
+            game["status"] = "finished"
+            game["winner"] = "draw"
+            game["message"] = f"Vibe check complete! Compatibility: {game['vibe_score']}/{len(game['questions'])}"
+        else:
+            game["votes"][p0] = None
+            game["votes"][p1] = None
+    else:
+        game["message"] = "Vote locked. Waiting for your partner's spicy opinion..."
+    return None
+
+
 def winning_mark(board: list[str | None], lines: list[tuple[int, int, int]]) -> str | None:
     for a, b, c in lines:
         if board[a] and board[a] == board[b] == board[c]:
@@ -799,6 +852,14 @@ def serialize_game(game: dict[str, Any], viewer_id: str) -> dict[str, Any]:
         base["claimed"] = game["claimed"]
         base["revealed"] = [value if owner is not None else None for value, owner in zip(game["values"], game["claimed"], strict=False)]
         base["scores"] = {player_mark(game, player_id): score for player_id, score in game["scores"].items()}
+    if game["type"] == "hot_takes":
+        idx = game["current_question"]
+        q = game["questions"][idx] if idx < len(game["questions"]) else ""
+        base["question"] = q
+        base["questionIndex"] = idx
+        base["totalQuestions"] = len(game["questions"])
+        base["myVote"] = game["votes"].get(viewer_id)
+        base["vibeScore"] = game["vibe_score"]
     return base
 
 
