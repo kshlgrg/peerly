@@ -639,6 +639,33 @@ class ConnectionManager:
                 "message": "Vibe Check started. Vote honestly or face eternal cringe.",
             }
 
+        if game_type == "scribble":
+            words = ["AIRPODS", "RED FLAG", "CAFFEINE", "GHOST", "ALL NIGHTER", "CHAI", "CAT", "BRAINROT"]
+            return {
+                "type": "scribble",
+                "players": [first_id, second_id],
+                "drawer": first_id,
+                "word": random.choice(words),
+                "strokes": [],
+                "scores": {first_id: 0, second_id: 0},
+                "status": "playing",
+                "winner": None,
+                "message": "Scribble started! Drawer: draw the word. Guesser: guess in chat!",
+            }
+
+        if game_type == "truth_dare":
+            return {
+                "type": "truth_dare",
+                "players": [first_id, second_id],
+                "turn": first_id,
+                "choice": None,
+                "prompt": None,
+                "aura": {first_id: 1000, second_id: 1000},
+                "status": "playing",
+                "winner": None,
+                "message": "Truth or Dare initiated. Pick your poison or lose aura.",
+            }
+
         return {
             "type": "tic_tac_toe",
             "players": [first_id, second_id],
@@ -666,6 +693,10 @@ class ConnectionManager:
             return apply_loot_tiles_move(game, player_id, move)
         if game_type == "hot_takes":
             return apply_hot_takes_move(game, player_id, move)
+        if game_type == "scribble":
+            return apply_scribble_move(game, player_id, move)
+        if game_type == "truth_dare":
+            return apply_truth_dare_move(game, player_id, move)
         return "Unknown game."
 
 
@@ -793,6 +824,90 @@ def apply_hot_takes_move(game: dict[str, Any], player_id: str, move: dict[str, A
     return None
 
 
+def apply_scribble_move(game: dict[str, Any], player_id: str, move: dict[str, Any]) -> str | None:
+    action = move.get("action", "")
+    drawer = game["drawer"]
+    players = game["players"]
+    if action == "stroke":
+        if player_id != drawer:
+            return "Only the drawer can draw!"
+        if "data" in move:
+            game["strokes"].append(move["data"])
+        return None
+    if action == "clear":
+        if player_id == drawer:
+            game["strokes"] = []
+        return None
+    if action == "guess":
+        if player_id == drawer:
+            return "Drawer cannot guess their own masterpiece."
+        guess = str(move.get("guess", "")).strip().upper()
+        if guess == game["word"]:
+            game["scores"][player_id] = game["scores"].get(player_id, 0) + 100
+            game["scores"][drawer] = game["scores"].get(drawer, 0) + 50
+            game["message"] = f"🔥 CORRECT! The word was {game['word']}. +100 Aura Points!"
+            next_drawer = players[1] if players[0] == drawer else players[0]
+            words = ["AIRPODS", "RED FLAG", "CAFFEINE", "GHOST", "ALL NIGHTER", "CHAI", "CAT", "BRAINROT"]
+            game["word"] = random.choice(words)
+            game["drawer"] = next_drawer
+            game["strokes"] = []
+        else:
+            game["message"] = f"❌ '{guess}' is wrong! Keep guessing!"
+        return None
+    return "Unknown scribble action."
+
+
+def apply_truth_dare_move(game: dict[str, Any], player_id: str, move: dict[str, Any]) -> str | None:
+    action = move.get("action", "")
+    turn = game["turn"]
+    players = game["players"]
+    other = players[1] if players[0] == turn else players[0]
+    if action == "pick":
+        if player_id != turn:
+            return "Not your turn to pick!"
+        cat = move.get("choice", "truth")
+        game["choice"] = cat
+        if cat == "truth":
+            truths = [
+                "What is the most delusional lie currently on your resume or IG?",
+                "Have you stalked an ex or crush from a burner account this month?",
+                "What is the pettiest reason you have ever ghosted or skipped someone?",
+                "Rate your current mental stability out of 10 and defend your grade.",
+                "What is the most illegal thing you did on campus that nobody found out?",
+            ]
+            game["prompt"] = random.choice(truths)
+        else:
+            dares = [
+                "Send the last photo taken in your camera roll right now in chat.",
+                "Turn on mic and do your best unhinged impression of a campus professor.",
+                "Text your best friend 'I know what you did' and do not reply for 5 minutes.",
+                "Do 10 rapid pushups right now on camera or confess your biggest cringe moment.",
+                "Speak with an exaggerated British accent for the next 3 chat turns.",
+            ]
+            game["prompt"] = random.choice(dares)
+        game["message"] = f"Prompt delivered: {cat.upper()}. Complete or chicken out?"
+        return None
+    if action == "complete":
+        if player_id != turn:
+            return "Not your turn!"
+        game["aura"][player_id] = game["aura"].get(player_id, 1000) + 500
+        game["message"] = "🔥 RESPECT! Prompt completed. +500 Aura Points!"
+        game["turn"] = other
+        game["choice"] = None
+        game["prompt"] = None
+        return None
+    if action == "forfeit":
+        if player_id != turn:
+            return "Not your turn!"
+        game["aura"][player_id] = game["aura"].get(player_id, 1000) - 500
+        game["message"] = "💀 CHICKENED OUT! -500 Aura Points. Emotional damage inflicted."
+        game["turn"] = other
+        game["choice"] = None
+        game["prompt"] = None
+        return None
+    return "Unknown truth/dare action."
+
+
 def winning_mark(board: list[str | None], lines: list[tuple[int, int, int]]) -> str | None:
     for a, b, c in lines:
         if board[a] and board[a] == board[b] == board[c]:
@@ -860,6 +975,16 @@ def serialize_game(game: dict[str, Any], viewer_id: str) -> dict[str, Any]:
         base["totalQuestions"] = len(game["questions"])
         base["myVote"] = game["votes"].get(viewer_id)
         base["vibeScore"] = game["vibe_score"]
+    if game["type"] == "scribble":
+        is_drawer = viewer_id == game["drawer"]
+        base["isDrawer"] = is_drawer
+        base["word"] = game["word"] if is_drawer else "".join(" " if c == " " else "_" for c in game["word"])
+        base["strokes"] = game["strokes"]
+        base["scores"] = {player_mark(game, pid): score for pid, score in game["scores"].items()}
+    if game["type"] == "truth_dare":
+        base["choice"] = game["choice"]
+        base["prompt"] = game["prompt"]
+        base["aura"] = {player_mark(game, pid): val for pid, val in game["aura"].items()}
     return base
 
 

@@ -1,4 +1,4 @@
-import { Check, Video, X } from "lucide-react";
+import { Check, Sparkles, Video, X } from "lucide-react";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -6,6 +6,7 @@ import ChatBox from "../components/ChatBox.jsx";
 import Controls from "../components/Controls.jsx";
 import MatchStatus from "../components/MatchStatus.jsx";
 import { useSocket } from "../hooks/useSocket.js";
+import { playRevealSound } from "../utils/sfx.js";
 
 export default function Chat() {
   const navigate = useNavigate();
@@ -39,21 +40,38 @@ export default function Chat() {
     }
   }, [mode, navigate]);
 
+  // Solo Reveal: Triggers epic sound effect and upgrades room directly
+  function handleSoloReveal() {
+    playRevealSound();
+    upgradeToVideo();
+  }
+
   return (
     <main className="peerly-shell flex min-h-[100dvh] w-full flex-col gap-3 p-3 sm:gap-4 sm:p-4 lg:h-[100dvh] lg:overflow-hidden">
       <header className="relative z-10 mx-auto flex w-full max-w-6xl shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <MatchStatus status={status} error={error} />
         <Controls onNext={next} disabled={status === "connecting" || status === "disconnected"}>
-          {/* This sends a consent-based video request instead of forcing both users into camera mode. */}
+          {/* Mutual video request */}
           <button
             className="command-button border-copper bg-copper text-ink hover:bg-amber"
             type="button"
             onClick={upgradeToVideo}
             disabled={!isMatched || hasVideoRequest}
-            title="Send a video request without losing this chat"
+            title="Send a mutual video request"
           >
             <Video size={17} aria-hidden="true" />
-            {hasVideoRequest ? "Video request pending" : "Request video chaos"}
+            {hasVideoRequest ? "Request pending" : "Request video"}
+          </button>
+          {/* Solo Reveal Myself button */}
+          <button
+            className="command-button border-amber bg-amber text-ink hover:bg-copper shadow-[0_0_12px_rgba(217,255,0,0.4)]"
+            type="button"
+            onClick={handleSoloReveal}
+            disabled={!isMatched}
+            title="Reveal your own face without forcing your partner"
+          >
+            <Sparkles size={17} aria-hidden="true" />
+            Reveal Myself 👑
           </button>
         </Controls>
       </header>

@@ -1,4 +1,6 @@
 import { Dice5, Gamepad2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { playAuraSound, playDamageSound } from "../utils/sfx.js";
 
 // Each game entry contains the backend id, display label, and tiny UI description.
 const games = [
@@ -7,6 +9,8 @@ const games = [
   ["dice_race", "Dice Race", "Server rolls. Your excuses do not."],
   ["loot_tiles", "Loot Tiles", "Mystery points for suspicious people."],
   ["hot_takes", "Vibe Check", "Spicy campus takes. Agree or fight."],
+  ["scribble", "Scribble", "Doodle chaos. Partner guesses."],
+  ["truth_dare", "Truth or Dare", "Spicy campus dares. Lose aura."],
 ];
 
 export default function MiniGames({ compact = false, disabled = false, gameState, gameError, onGame }) {
@@ -68,6 +72,8 @@ export default function MiniGames({ compact = false, disabled = false, gameState
           {gameState.type === "dice_race" && <DiceRace state={gameState} move={move} isYourTurn={isYourTurn} />}
           {gameState.type === "loot_tiles" && <LootTiles state={gameState} move={move} isYourTurn={isYourTurn} />}
           {gameState.type === "hot_takes" && <HotTakes state={gameState} move={move} />}
+          {gameState.type === "scribble" && <Scribble state={gameState} move={move} />}
+          {gameState.type === "truth_dare" && <TruthOrDare state={gameState} move={move} isYourTurn={isYourTurn} />}
         </div>
       )}
     </section>
@@ -272,4 +278,235 @@ function cellClass(mark) {
 // Converts the backend game id into a display label for headers.
 function labelForGame(type) {
   return games.find(([id]) => id === type)?.[1] ?? "Game";
+}
+
+function Scribble({ state, move }) {
+  const canvasRef = useRef(null);
+  const isDrawingRef = useRef(false);
+  const [guessInput, setGuessInput] = useState("");
+  const isDrawer = Boolean(state.isDrawer);
+
+  // Redraw strokes whenever updated from server
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+
+    (state.strokes || []).forEach((stroke) => {
+      ctx.beginPath();
+      ctx.strokeStyle = stroke.color || "#d9ff00";
+      ctx.lineWidth = stroke.width || 3;
+      (stroke.points || []).forEach((pt, idx) => {
+        if (idx === 0) ctx.moveTo(pt.x, pt.y);
+        else ctx.lineTo(pt.x, pt.y);
+      });
+      ctx.stroke();
+    });
+  }, [state.strokes]);
+
+  const currentStrokeRef = useRef([]);
+
+  function getCoords(e) {
+    const rect = canvasRef.current.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return {
+      x: clientX - rect.left,
+      y: clientY - rect.top,
+    };
+  }
+
+  function startDraw(e) {
+    if (!isDrawer) return;
+    isDrawingRef.current = true;
+    const { x, y } = getCoords(e);
+    currentStrokeRef.current = [{ x, y }];
+  }
+
+  function doDraw(e) {
+    if (!isDrawer || !isDrawingRef.current) return;
+    const { x, y } = getCoords(e);
+    currentStrokeRef.current.push({ x, y });
+
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    ctx.strokeStyle = "#d9ff00";
+    ctx.lineWidth = 3;
+    const pts = currentStrokeRef.current;
+    if (pts.length > 1) {
+      ctx.beginPath();
+      ctx.moveTo(pts[pts.length - 2].x, pts[pts.length - 2].y);
+      ctx.lineTo(x, y);
+      ctx.stroke();
+    }
+  }
+
+  function stopDraw() {
+    if (!isDrawer || !isDrawingRef.current) return;
+    isDrawingRef.current = false;
+    if (currentStrokeRef.current.length > 0) {
+      move({
+        action: "stroke",
+        data: {
+          color: "#d9ff00",
+          width: 3,
+          points: currentStrokeRef.current,
+        },
+      });
+      currentStrokeRef.current = [];
+    }
+  }
+
+  function handleGuess(e) {
+    e.preventDefault();
+    if (!guessInput.trim()) return;
+    move({ action: "guess", guess: guessInput.trim() });
+    setGuessInput("");
+  }
+
+  return (
+    <div className="space-y-3 font-mono">
+      <div className="flex items-center justify-between text-xs font-black text-cream/70">
+        <span>A: {state.scores?.A ?? 0} pts</span>
+        <span className="text-amber">
+          {isDrawer ? `DRAW: ${state.word}` : `GUESS: ${state.word}`}
+        </span>
+        <span>B: {state.scores?.B ?? 0} pts</span>
+      </div>
+      <div className="relative mx-auto w-full rounded border-2 border-line bg-ink p-1">
+        <canvas
+          ref={canvasRef}
+          width={300}
+          height={150}
+          className="mx-auto block touch-none cursor-crosshair bg-[#0d0012]"
+          onMouseDown={startDraw}
+          onMouseMove={doDraw}
+          onMouseUp={stopDraw}
+          onMouseLeave={stopDraw}
+          onTouchStart={startDraw}
+          onTouchMove={doDraw}
+          onTouchEnd={stopDraw}
+        />
+      </div>
+      {isDrawer ? (
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] text-cream/50">Draw on the canvas. Don&apos;t spoil in chat!</span>
+          <button
+            type="button"
+            className="border border-line bg-ink px-2 py-1 text-[10px] font-black text-amber hover:border-amber"
+            onClick={() => move({ action: "clear" })}
+          >
+            Clear Canvas
+          </button>
+        </div>
+      ) : (
+        <form onSubmit={handleGuess} className="flex gap-2">
+          <input
+            className="flex-1 rounded border border-line bg-ink px-3 py-1 font-mono text-xs text-cream outline-none focus:border-amber"
+            placeholder="Type your guess here..."
+            value={guessInput}
+            onChange={(e) => setGuessInput(e.target.value)}
+          />
+          <button
+            type="submit"
+            className="border-2 border-amber bg-amber px-3 py-1 font-mono text-xs font-black text-ink hover:opacity-90"
+          >
+            Guess
+          </button>
+        </form>
+      )}
+    </div>
+  );
+}
+
+function TruthOrDare({ state, move, isYourTurn }) {
+  const hasPrompt = Boolean(state.prompt);
+
+  function pick(choice) {
+    move({ action: "pick", choice });
+  }
+
+  function handleComplete() {
+    playAuraSound();
+    move({ action: "complete" });
+  }
+
+  function handleForfeit() {
+    playDamageSound();
+    move({ action: "forfeit" });
+  }
+
+  return (
+    <div className="space-y-3 font-mono">
+      <div className="flex justify-between text-xs font-black text-cream/70">
+        <span>A Aura: {state.aura?.A ?? 1000}</span>
+        <span className="text-copper">⚡ Campus Edition</span>
+        <span>B Aura: {state.aura?.B ?? 1000}</span>
+      </div>
+
+      {!hasPrompt ? (
+        isYourTurn ? (
+          <div className="space-y-2 text-center">
+            <p className="text-xs font-bold text-amber">Your turn! Choose your test of courage:</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => pick("truth")}
+                className="min-h-12 border-2 border-amber bg-amber font-mono text-xs font-black text-ink hover:bg-copper transition"
+              >
+                TRUTH (EXPOSE)
+              </button>
+              <button
+                type="button"
+                onClick={() => pick("dare")}
+                className="min-h-12 border-2 border-copper bg-copper font-mono text-xs font-black text-ink hover:bg-amber transition"
+              >
+                DARE (VIOLENCE)
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="border border-line bg-ink p-3 text-center text-xs font-bold text-cream/60">
+            Waiting for partner to pick Truth or Dare...
+          </div>
+        )
+      ) : (
+        <div className="space-y-3">
+          <div className="border-2 border-copper bg-[#18001d] p-3 text-center">
+            <span className="font-mono text-[10px] font-black uppercase text-amber">
+              [{state.choice}]
+            </span>
+            <p className="mt-1 text-sm font-black text-cream leading-5">
+              &ldquo;{state.prompt}&rdquo;
+            </p>
+          </div>
+          {isYourTurn ? (
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={handleComplete}
+                className="min-h-10 border-2 border-amber bg-amber text-xs font-black text-ink hover:opacity-90"
+              >
+                SURVIVED (+500 AURA)
+              </button>
+              <button
+                type="button"
+                onClick={handleForfeit}
+                className="min-h-10 border-2 border-line bg-ink text-xs font-black text-copper hover:border-copper"
+              >
+                CHICKENED OUT (-500)
+              </button>
+            </div>
+          ) : (
+            <p className="text-center text-xs font-bold text-cream/60">
+              Partner is currently attempting or chickening out of this dare...
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }

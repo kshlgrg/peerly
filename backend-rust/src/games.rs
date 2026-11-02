@@ -56,6 +56,28 @@ pub enum GameState {
         winner: Option<String>,
         message: String,
     },
+    #[serde(rename = "scribble")]
+    Scribble {
+        players: [String; 2],
+        drawer: String,
+        word: String,
+        strokes: Vec<serde_json::Value>,
+        scores: HashMap<String, u32>,
+        status: String,
+        winner: Option<String>,
+        message: String,
+    },
+    #[serde(rename = "truth_dare")]
+    TruthDare {
+        players: [String; 2],
+        turn: String,
+        choice: Option<String>,
+        prompt: Option<String>,
+        aura: HashMap<String, i32>,
+        status: String,
+        winner: Option<String>,
+        message: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -139,6 +161,38 @@ impl GameState {
                     message: "Vibe Check started. Vote honestly or face eternal cringe.".to_string(),
                 }
             }
+            "scribble" => {
+                let words = ["AIRPODS", "RED FLAG", "CAFFEINE", "GHOST", "ALL NIGHTER", "CHAI", "CAT", "BRAINROT"];
+                let chosen_word = words.choose(&mut rng).unwrap_or(&"RED FLAG").to_string();
+                let mut scores = HashMap::new();
+                scores.insert(first_id.to_string(), 0);
+                scores.insert(second_id.to_string(), 0);
+                GameState::Scribble {
+                    players: [first_id.to_string(), second_id.to_string()],
+                    drawer: first_id.to_string(),
+                    word: chosen_word,
+                    strokes: Vec::new(),
+                    scores,
+                    status: "playing".to_string(),
+                    winner: None,
+                    message: "Scribble started! Drawer: draw the word. Guesser: guess in chat!".to_string(),
+                }
+            }
+            "truth_dare" => {
+                let mut aura = HashMap::new();
+                aura.insert(first_id.to_string(), 1000);
+                aura.insert(second_id.to_string(), 1000);
+                GameState::TruthDare {
+                    players: [first_id.to_string(), second_id.to_string()],
+                    turn: first_id.to_string(),
+                    choice: None,
+                    prompt: None,
+                    aura,
+                    status: "playing".to_string(),
+                    winner: None,
+                    message: "Truth or Dare initiated. Pick your poison or lose aura.".to_string(),
+                }
+            }
             _ => GameState::TicTacToe {
                 players: [first_id.to_string(), second_id.to_string()],
                 turn: first_id.to_string(),
@@ -157,6 +211,8 @@ impl GameState {
             GameState::DiceRace { players, .. } => players,
             GameState::LootTiles { players, .. } => players,
             GameState::HotTakes { players, .. } => players,
+            GameState::Scribble { players, .. } => players,
+            GameState::TruthDare { players, .. } => players,
         }
     }
 
@@ -422,6 +478,127 @@ impl GameState {
                 }
                 Ok(())
             }
+            GameState::Scribble {
+                players,
+                drawer,
+                word,
+                strokes,
+                scores,
+                status,
+                winner,
+                message,
+            } => {
+                if status != "playing" {
+                    return Err("Scribble game is done.".to_string());
+                }
+                let action = move_payload.get("action").and_then(|v| v.as_str()).unwrap_or("");
+                if action == "stroke" {
+                    if player_id != drawer {
+                        return Err("Only the drawer can draw!".to_string());
+                    }
+                    if let Some(data) = move_payload.get("data") {
+                        strokes.push(data.clone());
+                    }
+                    return Ok(());
+                }
+                if action == "clear" {
+                    if player_id == drawer {
+                        strokes.clear();
+                    }
+                    return Ok(());
+                }
+                if action == "guess" {
+                    if player_id == drawer {
+                        return Err("Drawer cannot guess their own masterpiece.".to_string());
+                    }
+                    let guess = move_payload.get("guess").and_then(|v| v.as_str()).unwrap_or("").trim().to_uppercase();
+                    if guess == *word {
+                        *scores.entry(player_id.to_string()).or_insert(0) += 100;
+                        *scores.entry(drawer.clone()).or_insert(0) += 50;
+                        *message = format!("🔥 CORRECT! The word was {}. +100 Aura Points!", word);
+                        // Swap drawer and pick next word
+                        let next_drawer = other_p(players, drawer);
+                        let words = ["AIRPODS", "RED FLAG", "CAFFEINE", "GHOST", "ALL NIGHTER", "CHAI", "CAT", "BRAINROT"];
+                        *word = words.choose(&mut rand::thread_rng()).unwrap_or(&"CHAI").to_string();
+                        *drawer = next_drawer;
+                        strokes.clear();
+
+                        if scores.values().any(|&s| s >= 300) {
+                            *status = "finished".to_string();
+                            *winner = Some(player_id.to_string());
+                            *message = "Game Over! Master of Scribble has been crowned!".to_string();
+                        }
+                    } else {
+                        *message = format!("❌ '{}' is wrong! Keep guessing!", guess);
+                    }
+                    return Ok(());
+                }
+                Err("Unknown scribble action.".to_string())
+            }
+            GameState::TruthDare {
+                players,
+                turn,
+                choice,
+                prompt,
+                aura,
+                status: _status,
+                winner: _winner,
+                message,
+            } => {
+                let action = move_payload.get("action").and_then(|v| v.as_str()).unwrap_or("");
+                if action == "pick" {
+                    if player_id != turn {
+                        return Err("Not your turn to pick!".to_string());
+                    }
+                    let cat = move_payload.get("choice").and_then(|v| v.as_str()).unwrap_or("truth");
+                    *choice = Some(cat.to_string());
+                    let mut rng = rand::thread_rng();
+                    if cat == "truth" {
+                        let truths = [
+                            "What is the most delusional lie currently on your resume or IG?",
+                            "Have you stalked an ex or crush from a burner account this month?",
+                            "What is the pettiest reason you have ever ghosted or skipped someone?",
+                            "Rate your current mental stability out of 10 and defend your grade.",
+                            "What is the most illegal thing you did on campus that nobody found out?",
+                        ];
+                        *prompt = Some(truths.choose(&mut rng).unwrap().to_string());
+                    } else {
+                        let dares = [
+                            "Send the last photo taken in your camera roll right now in chat.",
+                            "Turn on mic and do your best unhinged impression of a campus professor.",
+                            "Text your best friend 'I know what you did' and do not reply for 5 minutes.",
+                            "Do 10 rapid pushups right now on camera or confess your biggest cringe moment.",
+                            "Speak with an exaggerated British accent for the next 3 chat turns.",
+                        ];
+                        *prompt = Some(dares.choose(&mut rng).unwrap().to_string());
+                    }
+                    *message = format!("Prompt delivered: {}. Complete or chicken out?", cat.to_uppercase());
+                    return Ok(());
+                }
+                if action == "complete" {
+                    if player_id != turn {
+                        return Err("Not your turn!".to_string());
+                    }
+                    *aura.entry(player_id.to_string()).or_insert(1000) += 500;
+                    *message = "🔥 RESPECT! Prompt completed. +500 Aura Points!".to_string();
+                    *turn = other_p(players, turn);
+                    *choice = None;
+                    *prompt = None;
+                    return Ok(());
+                }
+                if action == "forfeit" {
+                    if player_id != turn {
+                        return Err("Not your turn!".to_string());
+                    }
+                    *aura.entry(player_id.to_string()).or_insert(1000) -= 500;
+                    *message = "💀 CHICKENED OUT! -500 Aura Points. Emotional damage inflicted.".to_string();
+                    *turn = other_p(players, turn);
+                    *choice = None;
+                    *prompt = None;
+                    return Ok(());
+                }
+                Err("Unknown truth/dare action.".to_string())
+            }
         }
     }
 
@@ -586,6 +763,68 @@ impl GameState {
                     "totalQuestions": questions.len(),
                     "myVote": my_vote,
                     "vibeScore": vibe_score,
+                })
+            }
+            GameState::Scribble {
+                drawer,
+                word,
+                strokes,
+                scores,
+                status,
+                winner,
+                message,
+                ..
+            } => {
+                let is_drawer = viewer_id == drawer;
+                let masked_word = if is_drawer {
+                    word.clone()
+                } else {
+                    word.chars()
+                        .map(|c| if c == ' ' { ' ' } else { '_' })
+                        .collect()
+                };
+                let mut score_map = serde_json::Map::new();
+                score_map.insert("A".to_string(), serde_json::json!(scores.get(&players[0]).cloned().unwrap_or(0)));
+                score_map.insert("B".to_string(), serde_json::json!(scores.get(&players[1]).cloned().unwrap_or(0)));
+
+                serde_json::json!({
+                    "type": "scribble",
+                    "you": you,
+                    "turn": if is_drawer { you.clone() } else { (if you == "A" { "B" } else { "A" }).to_string() },
+                    "status": status,
+                    "winner": winner,
+                    "message": message,
+                    "isDrawer": is_drawer,
+                    "word": masked_word,
+                    "strokes": strokes,
+                    "scores": score_map,
+                })
+            }
+            GameState::TruthDare {
+                turn,
+                choice,
+                prompt,
+                aura,
+                status,
+                winner,
+                message,
+                ..
+            } => {
+                let turn_mark = if players[0] == *turn { "A" } else { "B" };
+                let mut aura_map = serde_json::Map::new();
+                aura_map.insert("A".to_string(), serde_json::json!(aura.get(&players[0]).cloned().unwrap_or(1000)));
+                aura_map.insert("B".to_string(), serde_json::json!(aura.get(&players[1]).cloned().unwrap_or(1000)));
+
+                serde_json::json!({
+                    "type": "truth_dare",
+                    "you": you,
+                    "turn": turn_mark,
+                    "status": status,
+                    "winner": winner,
+                    "message": message,
+                    "choice": choice,
+                    "prompt": prompt,
+                    "aura": aura_map,
                 })
             }
         }
